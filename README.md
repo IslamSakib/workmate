@@ -1,36 +1,39 @@
-# WorkMate 🚀
+# WorkMate
 
-WorkMate is a modern freelancer productivity platform for tracking time, managing projects, generating invoices, and analyzing earnings.
+A freelancer productivity SaaS for time tracking, project management, reporting, and invoicing.
 
-## Features
+## Stack
 
-- Client Management
-- Project Management
-- Task Tracking
-- Live Timer
-- Manual Time Entry
-- Earnings Calculator
-- Multi-Currency Support
-- Invoice Generator
-- PDF Export
-- Reports (Daily, Weekly, Monthly, Yearly)
-- Analytics Dashboard
-- Dark Mode
-- Mobile Responsive UI
+React 19 · Vite · TypeScript · Tailwind CSS · shadcn/ui · Zustand · React Hook Form + Zod · TanStack Table · Recharts · pdf-lib · Supabase (Auth, Postgres, Storage)
 
-## Tech Stack
-
-- React + Vite
-- TypeScript
-- Tailwind CSS
-- Shadcn UI
-- Supabase (Auth + Database + Storage)
-- Recharts
-- React Hook Form + Zod
-- pdf-lib
-
-## Setup
+## Getting started
 
 ```bash
 npm install
+cp .env.example .env   # fill in your Supabase URL + anon key
 npm run dev
+```
+
+Run `supabase/migrations/0001_init.sql` in your Supabase project's SQL editor before first use — see [DEPLOYMENT.md](./DEPLOYMENT.md) for the full setup and Hostinger deployment guide.
+
+## Scripts
+
+- `npm run dev` — start the dev server
+- `npm run build` — type-check and build for production
+- `npm run lint` — run ESLint
+- `npm run preview` — preview the production build locally
+
+## Project structure
+
+```
+src/
+  components/   shared UI (shadcn primitives, layout, DataTable, dialogs)
+  features/     domain logic per module (auth, clients, projects, tasks, timer, reports, invoices, settings, dashboard)
+  pages/        route-level components
+  hooks/        shared hooks
+  store/        zustand stores (auth, timer)
+  lib/          supabase client, currency formatting, PDF builders
+  types/        hand-written Supabase database types
+supabase/
+  migrations/   SQL schema + RLS policies
+```

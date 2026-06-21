@@ -1,0 +1,79 @@
+import { useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { Menu, LogOut, Settings as SettingsIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { SidebarNav } from "./Sidebar"
+import { useAuthStore } from "@/store/authStore"
+
+export function Topbar() {
+  const navigate = useNavigate()
+  const { user, signOut } = useAuthStore()
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  const initials = (user?.email ?? "U").slice(0, 2).toUpperCase()
+
+  const handleSignOut = async () => {
+    await signOut()
+    navigate("/login")
+  }
+
+  return (
+    <header className="flex h-14 items-center justify-between border-b px-4">
+      <div className="flex items-center gap-2">
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open menu"
+          >
+            <Menu className="size-5" />
+          </Button>
+          <SheetContent side="left" className="w-60 p-0">
+            <SheetHeader className="h-14 justify-center border-b px-4">
+              <SheetTitle className="text-left text-lg font-semibold tracking-tight">
+                WorkMate
+              </SheetTitle>
+            </SheetHeader>
+            <SidebarNav onNavigate={() => setMobileOpen(false)} />
+          </SheetContent>
+        </Sheet>
+        <span className="text-sm font-medium md:hidden">WorkMate</span>
+      </div>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="flex items-center gap-2 px-2">
+            <Avatar className="size-7">
+              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+            </Avatar>
+            <span className="hidden max-w-[140px] truncate text-sm sm:inline">
+              {user?.email}
+            </span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onClick={() => navigate("/settings")}>
+            <SettingsIcon className="size-4" />
+            Settings
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleSignOut} variant="destructive">
+            <LogOut className="size-4" />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </header>
+  )
+}
