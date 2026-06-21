@@ -22,7 +22,7 @@ export interface RecentTaskRow {
   id: string
   task_name: string
   date: string
-  duration_minutes: number
+  duration_seconds: number
   billable: boolean
   project_name: string | null
   client_name: string | null

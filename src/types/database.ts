@@ -72,9 +72,10 @@ export interface Database {
           date: string
           start_time: string | null
           end_time: string | null
-          duration_minutes: number
+          duration_seconds: number
           billable: boolean
           notes: string | null
+          invoice_id: string | null
           created_at: string
           updated_at: string
         }
@@ -110,15 +111,13 @@ export interface Database {
           client_id: string | null
           project_id: string | null
           invoice_number: string
-          subtotal: number
-          tax: number
-          discount: number
           total: number
           currency: CurrencyCode
           status: InvoiceStatus
           issue_date: string
           due_date: string | null
-          notes: string | null
+          period_start: string | null
+          period_end: string | null
           created_at: string
           updated_at: string
         }
@@ -132,16 +131,18 @@ export interface Database {
         Row: {
           id: string
           invoice_id: string
-          description: string
-          quantity: number
+          task_id: string | null
+          task_name: string
+          task_date: string
+          duration_seconds: number
           rate: number
           amount: number
-          sort_order: number
           created_at: string
         }
         Insert: Partial<Database["public"]["Tables"]["invoice_items"]["Row"]> & {
           invoice_id: string
-          description: string
+          task_name: string
+          task_date: string
         }
         Update: Partial<Database["public"]["Tables"]["invoice_items"]["Row"]>
         Relationships: []

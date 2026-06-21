@@ -1,18 +1,19 @@
 import { createPdfContext, drawDivider, drawKeyValueRow, drawTable, drawTitle, downloadPdf } from "./shared"
 import { formatCurrency } from "@/lib/currency"
+import { formatDuration } from "@/lib/duration"
 
 export interface ReportPdfRow {
   date: string
   task_name: string
   project_name: string | null
   client_name: string | null
-  hours: number
+  duration_seconds: number
   billable: boolean
 }
 
 export interface ReportPdfData {
   rangeLabel: string
-  totalHours: number
+  totalSeconds: number
   totalRevenue: number
   projectCount: number
   clientCount: number
@@ -24,7 +25,7 @@ export async function generateReportPdf(data: ReportPdfData) {
 
   drawTitle(ctx, "Time & Revenue Report", data.rangeLabel)
 
-  drawKeyValueRow(ctx, "Total hours", `${data.totalHours.toFixed(1)}h`)
+  drawKeyValueRow(ctx, "Total duration", formatDuration(data.totalSeconds))
   drawKeyValueRow(ctx, "Total revenue", formatCurrency(data.totalRevenue))
   drawKeyValueRow(ctx, "Projects", String(data.projectCount))
   drawKeyValueRow(ctx, "Clients", String(data.clientCount))
@@ -35,17 +36,17 @@ export async function generateReportPdf(data: ReportPdfData) {
     ctx,
     [
       { label: "Date", width: 70 },
-      { label: "Task", width: 160 },
+      { label: "Task", width: 150 },
       { label: "Project", width: 110 },
       { label: "Client", width: 100 },
-      { label: "Hours", width: 60, align: "right" },
+      { label: "Duration", width: 70, align: "right" },
     ],
     data.rows.map((row) => [
       row.date,
       row.task_name,
       row.project_name ?? "—",
       row.client_name ?? "—",
-      row.hours.toFixed(2),
+      formatDuration(row.duration_seconds),
     ]),
   )
 

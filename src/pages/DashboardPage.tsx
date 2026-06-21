@@ -65,9 +65,9 @@ export default function DashboardPage() {
         <p className="text-sm text-muted-foreground">Your freelance business at a glance.</p>
       </div>
 
-      <StatsCards stats={stats} />
-
       <QuickActions />
+
+      <StatsCards stats={stats} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <RevenueTrendChart data={trend} />

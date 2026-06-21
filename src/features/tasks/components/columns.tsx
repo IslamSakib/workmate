@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { formatDuration } from "@/lib/duration"
 import type { TaskWithRelations } from "../types"
 
 interface ColumnActions {
@@ -31,9 +32,9 @@ export function getTaskColumns({ onEdit, onDelete, onDuplicate }: ColumnActions)
       cell: ({ row }) => row.original.clients?.client_name ?? "—",
     },
     {
-      accessorKey: "duration_minutes",
+      accessorKey: "duration_seconds",
       header: "Duration",
-      cell: ({ row }) => `${(row.original.duration_minutes / 60).toFixed(2)}h`,
+      cell: ({ row }) => formatDuration(row.original.duration_seconds),
     },
     {
       accessorKey: "billable",

@@ -28,12 +28,12 @@ interface TaskFormDialogProps {
   onSubmit: (values: TaskInput) => Promise<void>
 }
 
-function diffMinutes(start?: string | null, end?: string | null) {
+function diffSeconds(start?: string | null, end?: string | null) {
   if (!start || !end) return null
   const [sh, sm] = start.split(":").map(Number)
   const [eh, em] = end.split(":").map(Number)
-  const minutes = eh * 60 + em - (sh * 60 + sm)
-  return minutes > 0 ? minutes : null
+  const seconds = (eh * 60 + em - (sh * 60 + sm)) * 60
+  return seconds > 0 ? seconds : null
 }
 
 export function TaskFormDialog({ open, onOpenChange, task, onSubmit }: TaskFormDialogProps) {
@@ -50,8 +50,10 @@ export function TaskFormDialog({ open, onOpenChange, task, onSubmit }: TaskFormD
     resolver: zodResolver(taskSchema) as Resolver<TaskInput>,
     defaultValues: {
       date: new Date().toISOString().slice(0, 10),
+      start_time: "",
+      end_time: "",
       billable: true,
-      duration_minutes: 0,
+      duration_seconds: 0,
     },
   })
 
@@ -68,25 +70,28 @@ export function TaskFormDialog({ open, onOpenChange, task, onSubmit }: TaskFormD
               project_id: task.project_id,
               client_id: task.client_id,
               date: task.date,
-              start_time: task.start_time,
-              end_time: task.end_time,
-              duration_minutes: task.duration_minutes,
+              start_time: task.start_time ?? "",
+              end_time: task.end_time ?? "",
+              duration_seconds: task.duration_seconds,
               billable: task.billable,
               notes: task.notes ?? "",
             }
           : {
               date: new Date().toISOString().slice(0, 10),
+              start_time: "",
+              end_time: "",
               billable: true,
-              duration_minutes: 0,
+              duration_seconds: 0,
             },
       )
     }
   }, [open, task, reset])
 
+  const computedDuration = diffSeconds(startTime, endTime)
+
   useEffect(() => {
-    const computed = diffMinutes(startTime, endTime)
-    if (computed !== null) setValue("duration_minutes", computed)
-  }, [startTime, endTime, setValue])
+    if (computedDuration !== null) setValue("duration_seconds", computedDuration)
+  }, [computedDuration, setValue])
 
   useEffect(() => {
     if (!projectId) return
@@ -162,17 +167,23 @@ export function TaskFormDialog({ open, onOpenChange, task, onSubmit }: TaskFormD
             <DatePicker value={watch("date")} onChange={(v) => setValue("date", v ?? "")} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="duration_minutes">Duration (minutes)</Label>
-            <Input id="duration_minutes" type="number" min={0} {...register("duration_minutes")} />
+            <Label>Duration</Label>
+            <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm text-muted-foreground">
+              {computedDuration !== null
+                ? `${Math.floor(computedDuration / 3600)}h ${Math.floor((computedDuration % 3600) / 60)}m`
+                : "Set start and end time"}
+            </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="start_time">Start time</Label>
             <Input id="start_time" type="time" {...register("start_time")} />
+            {errors.start_time && <p className="text-sm text-destructive">{errors.start_time.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="end_time">End time</Label>
             <Input id="end_time" type="time" {...register("end_time")} />
+            {errors.end_time && <p className="text-sm text-destructive">{errors.end_time.message}</p>}
           </div>
         </div>
 

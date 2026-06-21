@@ -1,11 +1,12 @@
 import { createPdfContext, drawTable, drawTitle, downloadPdf } from "./shared"
+import { formatDuration } from "@/lib/duration"
 
 export interface TimeLogPdfRow {
   date: string
   task_name: string
   project_name: string | null
   client_name: string | null
-  duration_minutes: number
+  duration_seconds: number
   billable: boolean
 }
 
@@ -29,7 +30,7 @@ export async function generateTimeLogPdf(rows: TimeLogPdfRow[], rangeLabel: stri
       row.task_name,
       row.project_name ?? "—",
       row.client_name ?? "—",
-      `${(row.duration_minutes / 60).toFixed(2)}h`,
+      formatDuration(row.duration_seconds),
       row.billable ? "Yes" : "No",
     ]),
   )

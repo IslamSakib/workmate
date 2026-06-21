@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Menu, LogOut, Settings as SettingsIcon } from "lucide-react"
+import { useTheme } from "next-themes"
+import { Menu, LogOut, Settings as SettingsIcon, Moon, Sun } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import {
@@ -17,6 +18,7 @@ import { useAuthStore } from "@/store/authStore"
 export function Topbar() {
   const navigate = useNavigate()
   const { user, signOut } = useAuthStore()
+  const { resolvedTheme, setTheme } = useTheme()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const initials = (user?.email ?? "U").slice(0, 2).toUpperCase()
@@ -51,7 +53,16 @@ export function Topbar() {
         <span className="text-sm font-medium md:hidden">WorkMate</span>
       </div>
 
-      <DropdownMenu>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Toggle theme"
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+        >
+          {resolvedTheme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
+        </Button>
+        <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="flex items-center gap-2 px-2">
             <Avatar className="size-7">
@@ -74,6 +85,7 @@ export function Topbar() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
     </header>
   )
 }

@@ -1,14 +1,13 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useFieldArray, useForm, type Resolver } from "react-hook-form"
+import { useForm, type Resolver } from "react-hook-form"
 import { toast } from "sonner"
-import { Plus, Trash2 } from "lucide-react"
 import { FormDialog } from "@/components/shared/FormDialog"
 import { DatePicker } from "@/components/shared/DatePicker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
   SelectContent,
@@ -17,10 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CURRENCIES, formatCurrency } from "@/lib/currency"
+import { formatDuration } from "@/lib/duration"
 import { useClientsList } from "@/hooks/useClientsList"
 import { useProjectsList } from "@/hooks/useProjectsList"
+import { listBillableTasks } from "../api"
 import { invoiceSchema, type InvoiceInput } from "../schema"
-import type { Invoice, InvoiceItem } from "../types"
+import type { BillableTask, Invoice, InvoiceItem } from "../types"
 
 const STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
@@ -34,7 +35,7 @@ interface InvoiceFormDialogProps {
   onOpenChange: (open: boolean) => void
   invoice?: Invoice | null
   items?: InvoiceItem[]
-  onSubmit: (values: InvoiceInput) => Promise<void>
+  onSubmit: (values: InvoiceInput, items: BillableTask[]) => Promise<void>
 }
 
 function nextInvoiceNumber() {
@@ -44,9 +45,12 @@ function nextInvoiceNumber() {
 export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit }: InvoiceFormDialogProps) {
   const clients = useClientsList()
   const projects = useProjectsList()
+  const [tasks, setTasks] = useState<BillableTask[]>([])
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
+  const [loadingTasks, setLoadingTasks] = useState(false)
+
   const {
     register,
-    control,
     handleSubmit,
     reset,
     setValue,
@@ -58,13 +62,10 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
       currency: "USD",
       status: "draft",
       issue_date: new Date().toISOString().slice(0, 10),
-      tax: 0,
-      discount: 0,
-      items: [{ description: "", quantity: 1, rate: 0 }],
+      period_start: new Date().toISOString().slice(0, 10),
+      period_end: new Date().toISOString().slice(0, 10),
     },
   })
-
-  const { fields, append, remove } = useFieldArray({ control, name: "items" })
 
   useEffect(() => {
     if (open) {
@@ -78,36 +79,79 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
               status: invoice.status,
               issue_date: invoice.issue_date,
               due_date: invoice.due_date,
-              tax: invoice.tax,
-              discount: invoice.discount,
-              notes: invoice.notes ?? "",
-              items: items && items.length > 0
-                ? items.map((i) => ({ description: i.description, quantity: i.quantity, rate: i.rate }))
-                : [{ description: "", quantity: 1, rate: 0 }],
+              period_start: invoice.period_start ?? new Date().toISOString().slice(0, 10),
+              period_end: invoice.period_end ?? new Date().toISOString().slice(0, 10),
             }
           : {
               invoice_number: nextInvoiceNumber(),
               currency: "USD",
               status: "draft",
               issue_date: new Date().toISOString().slice(0, 10),
-              tax: 0,
-              discount: 0,
-              items: [{ description: "", quantity: 1, rate: 0 }],
+              period_start: new Date().toISOString().slice(0, 10),
+              period_end: new Date().toISOString().slice(0, 10),
             },
       )
+      setTasks([])
+      setCheckedIds(new Set((items ?? []).filter((i) => i.task_id).map((i) => i.task_id as string)))
     }
   }, [open, invoice, items, reset])
 
-  const watchedItems = watch("items")
-  const tax = watch("tax") || 0
-  const discount = watch("discount") || 0
+  const clientId = watch("client_id")
+  const projectId = watch("project_id")
+  const periodStart = watch("period_start")
+  const periodEnd = watch("period_end")
   const currency = watch("currency")
-  const subtotal = (watchedItems ?? []).reduce((acc, item) => acc + (item.quantity || 0) * (item.rate || 0), 0)
-  const total = subtotal + Number(tax) - Number(discount)
+
+  useEffect(() => {
+    if (!open || !periodStart || !periodEnd) return
+    let active = true
+    setLoadingTasks(true)
+    listBillableTasks({
+      clientId,
+      projectId,
+      periodStart,
+      periodEnd,
+      excludeInvoiceId: invoice?.id,
+    })
+      .then((fetched) => {
+        if (!active) return
+        setTasks(fetched)
+        setCheckedIds((prev) => {
+          const fetchedIds = new Set(fetched.map((t) => t.id))
+          const next = new Set([...prev].filter((id) => fetchedIds.has(id)))
+          for (const t of fetched) {
+            if (!prev.has(t.id) && !invoice) next.add(t.id)
+          }
+          return next
+        })
+      })
+      .catch((error) => toast.error(error instanceof Error ? error.message : "Failed to load tasks"))
+      .finally(() => active && setLoadingTasks(false))
+    return () => {
+      active = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, clientId, projectId, periodStart, periodEnd, invoice?.id])
+
+  const selectedTasks = tasks.filter((t) => checkedIds.has(t.id))
+  const total = selectedTasks.reduce((acc, t) => acc + t.amount, 0)
+
+  const toggleTask = (id: string) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const submit = async (values: InvoiceInput) => {
+    if (selectedTasks.length === 0) {
+      toast.error("Select at least one task to bill")
+      return
+    }
     try {
-      await onSubmit(values)
+      await onSubmit(values, selectedTasks)
       onOpenChange(false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save invoice")
@@ -119,7 +163,7 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
       open={open}
       onOpenChange={onOpenChange}
       title={invoice ? "Edit Invoice" : "New Invoice"}
-      description="Line items, taxes, and discounts auto-calculate the total."
+      description="Pick a client/project and billing period — matching tasks and their amounts are picked up automatically."
     >
       <form onSubmit={handleSubmit(submit)} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -195,6 +239,17 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
           </div>
 
           <div className="space-y-2">
+            <Label>Billing period start</Label>
+            <DatePicker value={watch("period_start")} onChange={(v) => setValue("period_start", v ?? "")} />
+            {errors.period_start && <p className="text-sm text-destructive">{errors.period_start.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label>Billing period end</Label>
+            <DatePicker value={watch("period_end")} onChange={(v) => setValue("period_end", v ?? "")} />
+            {errors.period_end && <p className="text-sm text-destructive">{errors.period_end.message}</p>}
+          </div>
+
+          <div className="space-y-2">
             <Label>Currency</Label>
             <Select value={currency} onValueChange={(v) => setValue("currency", v as InvoiceInput["currency"])}>
               <SelectTrigger className="w-full">
@@ -212,73 +267,38 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>Line items</Label>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => append({ description: "", quantity: 1, rate: 0 })}
-            >
-              <Plus className="size-4" />
-              Add item
-            </Button>
-          </div>
-          {errors.items?.message && <p className="text-sm text-destructive">{errors.items.message}</p>}
-          <div className="space-y-2">
-            {fields.map((field, index) => (
-              <div key={field.id} className="flex items-end gap-2">
-                <div className="flex-1 space-y-1">
-                  {index === 0 && <Label className="text-xs text-muted-foreground">Description</Label>}
-                  <Input {...register(`items.${index}.description`)} placeholder="Description" />
-                </div>
-                <div className="w-20 space-y-1">
-                  {index === 0 && <Label className="text-xs text-muted-foreground">Qty</Label>}
-                  <Input type="number" step="0.01" {...register(`items.${index}.quantity`)} />
-                </div>
-                <div className="w-28 space-y-1">
-                  {index === 0 && <Label className="text-xs text-muted-foreground">Rate</Label>}
-                  <Input type="number" step="0.01" {...register(`items.${index}.rate`)} />
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => fields.length > 1 && remove(index)}
-                  disabled={fields.length === 1}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
+          <Label>Tasks in this billing period</Label>
+          <div className="max-h-64 space-y-1 overflow-y-auto rounded-md border p-2">
+            {loadingTasks && <p className="p-2 text-sm text-muted-foreground">Loading tasks...</p>}
+            {!loadingTasks && tasks.length === 0 && (
+              <p className="p-2 text-sm text-muted-foreground">No billable tasks found for this period.</p>
+            )}
+            {tasks.map((t) => (
+              <label
+                key={t.id}
+                className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <Checkbox checked={checkedIds.has(t.id)} onCheckedChange={() => toggleTask(t.id)} />
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{t.task_name}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {t.date} · {formatDuration(t.duration_seconds)}
+                      {t.project_name ? ` · ${t.project_name}` : ""}
+                    </span>
+                  </span>
+                </span>
+                <span className="shrink-0 font-mono text-xs">{formatCurrency(t.amount, currency)}</span>
+              </label>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="tax">Tax</Label>
-            <Input id="tax" type="number" step="0.01" {...register("tax")} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="discount">Discount</Label>
-            <Input id="discount" type="number" step="0.01" {...register("discount")} />
-          </div>
-        </div>
-
         <div className="space-y-1 rounded-md border p-3 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Subtotal</span>
-            <span>{formatCurrency(subtotal, currency)}</span>
-          </div>
           <div className="flex justify-between font-semibold">
-            <span>Total</span>
+            <span>Total payable</span>
             <span>{formatCurrency(total, currency)}</span>
           </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="notes">Notes</Label>
-          <Textarea id="notes" rows={2} {...register("notes")} />
         </div>
 
         <div className="flex justify-end gap-2">

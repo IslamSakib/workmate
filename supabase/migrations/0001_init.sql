@@ -75,7 +75,7 @@ create table tasks (
   date date not null default current_date,
   start_time time,
   end_time time,
-  duration_minutes integer not null default 0,
+  duration_seconds integer not null default 0,
   billable boolean not null default true,
   notes text,
   created_at timestamptz not null default now(),
@@ -116,15 +116,13 @@ create table invoices (
   client_id uuid references clients(id) on delete set null,
   project_id uuid references projects(id) on delete set null,
   invoice_number text not null,
-  subtotal numeric(12, 2) not null default 0,
-  tax numeric(12, 2) not null default 0,
-  discount numeric(12, 2) not null default 0,
   total numeric(12, 2) not null default 0,
   currency currency_code not null default 'USD',
   status invoice_status not null default 'draft',
   issue_date date not null default current_date,
   due_date date,
-  notes text,
+  period_start date,
+  period_end date,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, invoice_number)
@@ -134,20 +132,26 @@ create index invoices_user_id_idx on invoices(user_id);
 create index invoices_client_id_idx on invoices(client_id);
 
 -- ---------------------------------------------------------------------------
--- invoice_items (line items)
+-- invoice_items (one row per billed task, auto-derived — no manual line items)
 -- ---------------------------------------------------------------------------
 create table invoice_items (
   id uuid primary key default gen_random_uuid(),
   invoice_id uuid not null references invoices(id) on delete cascade,
-  description text not null,
-  quantity numeric(12, 2) not null default 1,
+  task_id uuid references tasks(id) on delete set null,
+  task_name text not null,
+  task_date date not null,
+  duration_seconds integer not null default 0,
   rate numeric(12, 2) not null default 0,
   amount numeric(12, 2) not null default 0,
-  sort_order integer not null default 0,
   created_at timestamptz not null default now()
 );
 
 create index invoice_items_invoice_id_idx on invoice_items(invoice_id);
+
+-- tasks.invoice_id links a task to the invoice it was billed on (added here
+-- since it references invoices, which is defined after tasks above).
+alter table tasks add column invoice_id uuid references invoices(id) on delete set null;
+create index tasks_invoice_id_idx on tasks(invoice_id);
 
 -- ---------------------------------------------------------------------------
 -- attachments

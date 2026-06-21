@@ -20,11 +20,34 @@ export async function createPdfContext(): Promise<PdfContext> {
   return { doc, page, font, bold, cursorY: PAGE_HEIGHT - MARGIN }
 }
 
-function ensureSpace(ctx: PdfContext, needed: number) {
+export function ensureSpace(ctx: PdfContext, needed: number) {
   if (ctx.cursorY - needed < MARGIN) {
     ctx.page = ctx.doc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
     ctx.cursorY = PAGE_HEIGHT - MARGIN
   }
+}
+
+type Color = ReturnType<typeof rgb>
+
+export function drawRect(
+  ctx: PdfContext,
+  opts: { x: number; y: number; width: number; height: number; color: Color },
+) {
+  ctx.page.drawRectangle(opts)
+}
+
+export function drawText(
+  ctx: PdfContext,
+  text: string,
+  opts: { x: number; y: number; size?: number; bold?: boolean; color?: Color },
+) {
+  ctx.page.drawText(text, {
+    x: opts.x,
+    y: opts.y,
+    size: opts.size ?? 10,
+    font: opts.bold ? ctx.bold : ctx.font,
+    color: opts.color ?? rgb(0.15, 0.15, 0.15),
+  })
 }
 
 export function drawTitle(ctx: PdfContext, title: string, subtitle?: string) {
@@ -62,8 +85,23 @@ export interface TableColumn {
   align?: "left" | "right"
 }
 
-export function drawTable(ctx: PdfContext, columns: TableColumn[], rows: string[][]) {
+export function drawTable(
+  ctx: PdfContext,
+  columns: TableColumn[],
+  rows: string[][],
+  options?: { headerFill?: Color },
+) {
   ensureSpace(ctx, 24)
+  if (options?.headerFill) {
+    const totalWidth = columns.reduce((sum, col) => sum + col.width, 0)
+    ctx.page.drawRectangle({
+      x: MARGIN - 6,
+      y: ctx.cursorY - 14,
+      width: totalWidth + 12,
+      height: 20,
+      color: options.headerFill,
+    })
+  }
   let x = MARGIN
   for (const col of columns) {
     ctx.page.drawText(col.label, { x, y: ctx.cursorY, size: 9, font: ctx.bold, color: rgb(0.4, 0.4, 0.4) })

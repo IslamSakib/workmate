@@ -6,12 +6,12 @@ export interface ReportRow {
   task_name: string
   project_name: string | null
   client_name: string | null
-  duration_minutes: number
+  duration_seconds: number
   billable: boolean
 }
 
 export interface ReportSummary {
-  totalHours: number
+  totalSeconds: number
   totalRevenue: number
   projectCount: number
   clientCount: number

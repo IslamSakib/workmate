@@ -14,7 +14,7 @@ import {
 } from "@/features/invoices/api"
 import { InvoiceFormDialog } from "@/features/invoices/components/InvoiceFormDialog"
 import { getInvoiceColumns } from "@/features/invoices/components/columns"
-import type { InvoiceItem, InvoiceWithRelations } from "@/features/invoices/types"
+import type { BillableTask, InvoiceItem, InvoiceWithRelations } from "@/features/invoices/types"
 import type { InvoiceInput } from "@/features/invoices/schema"
 import { generateInvoicePdf } from "@/lib/pdf/invoicePdf"
 
@@ -41,12 +41,12 @@ export default function InvoicesPage() {
     load()
   }, [])
 
-  const handleSubmit = async (values: InvoiceInput) => {
+  const handleSubmit = async (values: InvoiceInput, items: BillableTask[]) => {
     if (editing) {
-      await updateInvoice(editing.id, values)
+      await updateInvoice(editing.id, values, items)
       toast.success("Invoice updated")
     } else {
-      await createInvoice(values)
+      await createInvoice(values, items)
       toast.success("Invoice created")
     }
     setEditing(null)
@@ -74,16 +74,20 @@ export default function InvoicesPage() {
         status: invoice.status,
         issue_date: invoice.issue_date,
         due_date: invoice.due_date,
+        period_start: invoice.period_start,
+        period_end: invoice.period_end,
         currency: invoice.currency,
         client_name: invoice.clients?.client_name ?? "—",
         client_email: invoice.clients?.email,
         project_name: invoice.projects?.project_name,
-        items: items.map((i) => ({ description: i.description, quantity: i.quantity, rate: i.rate, amount: i.amount })),
-        subtotal: invoice.subtotal,
-        tax: invoice.tax,
-        discount: invoice.discount,
-        total: invoice.total,
-        notes: invoice.notes,
+        items: items.map((i) => ({
+          task_name: i.task_name,
+          task_date: i.task_date,
+          duration_seconds: i.duration_seconds,
+          rate: Number(i.rate),
+          amount: Number(i.amount),
+        })),
+        total: Number(invoice.total),
       })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to export PDF")
@@ -92,10 +96,14 @@ export default function InvoicesPage() {
 
   const columns = getInvoiceColumns({
     onEdit: async (invoice) => {
-      const items = await getInvoiceItems(invoice.id)
-      setEditingItems(items)
-      setEditing(invoice)
-      setFormOpen(true)
+      try {
+        const items = await getInvoiceItems(invoice.id)
+        setEditingItems(items)
+        setEditing(invoice)
+        setFormOpen(true)
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to load invoice")
+      }
     },
     onDelete: (invoice) => setDeleting(invoice),
     onExport: handleExport,

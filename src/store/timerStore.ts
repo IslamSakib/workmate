@@ -4,16 +4,29 @@ import { supabase } from "@/lib/supabaseClient"
 
 type TimerStatus = "idle" | "running" | "paused"
 
+function pad(n: number) {
+  return n.toString().padStart(2, "0")
+}
+
+function timeOfDay(date: Date) {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function dateOnly(date: Date) {
+  return date.toISOString().slice(0, 10)
+}
+
 interface TimerState {
   status: TimerStatus
   entryId: string | null
   projectId: string | null
   clientId: string | null
   taskId: string | null
+  taskName: string
   notes: string
   startedAt: number | null
   accumulatedSeconds: number
-  start: (input: { projectId: string | null; clientId: string | null; taskId: string | null; notes?: string }) => Promise<void>
+  start: (input: { projectId: string | null; clientId: string | null; taskName: string; notes?: string }) => Promise<void>
   pause: () => Promise<void>
   resume: () => void
   stop: () => Promise<void>
@@ -27,36 +40,56 @@ export const useTimerStore = create<TimerState>()(
       projectId: null,
       clientId: null,
       taskId: null,
+      taskName: "",
       notes: "",
       startedAt: null,
       accumulatedSeconds: 0,
 
-      start: async ({ projectId, clientId, taskId, notes }) => {
+      start: async ({ projectId, clientId, taskName, notes }) => {
         const { data: userData } = await supabase.auth.getUser()
         const userId = userData.user?.id
         if (!userId) throw new Error("Not authenticated")
 
-        const { data, error } = await supabase
+        const now = new Date()
+        const { data: task, error: taskError } = await supabase
+          .from("tasks")
+          .insert({
+            user_id: userId,
+            project_id: projectId,
+            client_id: clientId,
+            task_name: taskName,
+            date: dateOnly(now),
+            start_time: timeOfDay(now),
+            end_time: timeOfDay(now),
+            duration_seconds: 0,
+            billable: true,
+          })
+          .select()
+          .single()
+        if (taskError) throw taskError
+
+        const { data: entry, error: entryError } = await supabase
           .from("time_entries")
           .insert({
             user_id: userId,
             project_id: projectId,
             client_id: clientId,
-            task_id: taskId,
+            task_id: task.id,
             notes,
-            started_at: new Date().toISOString(),
+            started_at: now.toISOString(),
             is_running: true,
           })
           .select()
           .single()
-        if (error) throw error
+        if (entryError) throw entryError
 
         set({
           status: "running",
-          entryId: data.id,
+          entryId: entry.id,
           projectId,
           clientId,
-          taskId,
+          taskId: task.id,
+          taskName,
           notes: notes ?? "",
           startedAt: Date.now(),
           accumulatedSeconds: 0,
@@ -64,11 +97,17 @@ export const useTimerStore = create<TimerState>()(
       },
 
       pause: async () => {
-        const { startedAt, accumulatedSeconds, entryId } = get()
+        const { startedAt, accumulatedSeconds, entryId, taskId } = get()
         if (!startedAt) return
         const elapsed = accumulatedSeconds + Math.floor((Date.now() - startedAt) / 1000)
         if (entryId) {
           await supabase.from("time_entries").update({ duration_seconds: elapsed }).eq("id", entryId)
+        }
+        if (taskId) {
+          await supabase
+            .from("tasks")
+            .update({ duration_seconds: elapsed, end_time: timeOfDay(new Date()) })
+            .eq("id", taskId)
         }
         set({ status: "paused", startedAt: null, accumulatedSeconds: elapsed })
       },
@@ -78,7 +117,7 @@ export const useTimerStore = create<TimerState>()(
       },
 
       stop: async () => {
-        const { startedAt, accumulatedSeconds, entryId } = get()
+        const { startedAt, accumulatedSeconds, entryId, taskId } = get()
         const elapsed = accumulatedSeconds + (startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0)
 
         if (entryId) {
@@ -91,6 +130,12 @@ export const useTimerStore = create<TimerState>()(
             })
             .eq("id", entryId)
         }
+        if (taskId) {
+          await supabase
+            .from("tasks")
+            .update({ duration_seconds: elapsed, end_time: timeOfDay(new Date()) })
+            .eq("id", taskId)
+        }
 
         set({
           status: "idle",
@@ -98,6 +143,7 @@ export const useTimerStore = create<TimerState>()(
           projectId: null,
           clientId: null,
           taskId: null,
+          taskName: "",
           notes: "",
           startedAt: null,
           accumulatedSeconds: 0,

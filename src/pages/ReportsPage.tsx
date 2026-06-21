@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DatePicker } from "@/components/shared/DatePicker"
 import { DataTable } from "@/components/shared/DataTable"
 import { formatCurrency } from "@/lib/currency"
+import { formatDuration } from "@/lib/duration"
 import { buildChartSeries, getReportRows, summarize, toReportRows } from "@/features/reports/api"
 import type { ReportChartPoint, ReportPreset, ReportRow, ReportSummary } from "@/features/reports/types"
 import { generateReportPdf } from "@/lib/pdf/reportPdf"
@@ -56,9 +57,9 @@ const columns: ColumnDef<ReportRow, unknown>[] = [
   { accessorKey: "project_name", header: "Project", cell: ({ row }) => row.original.project_name ?? "—" },
   { accessorKey: "client_name", header: "Client", cell: ({ row }) => row.original.client_name ?? "—" },
   {
-    accessorKey: "duration_minutes",
-    header: "Hours",
-    cell: ({ row }) => (row.original.duration_minutes / 60).toFixed(2),
+    accessorKey: "duration_seconds",
+    header: "Duration",
+    cell: ({ row }) => formatDuration(row.original.duration_seconds),
   },
 ]
 
@@ -104,7 +105,7 @@ export default function ReportsPage() {
     if (!summary) return
     generateReportPdf({
       rangeLabel,
-      totalHours: summary.totalHours,
+      totalSeconds: summary.totalSeconds,
       totalRevenue: summary.totalRevenue,
       projectCount: summary.projectCount,
       clientCount: summary.clientCount,
@@ -113,7 +114,7 @@ export default function ReportsPage() {
         task_name: r.task_name,
         project_name: r.project_name,
         client_name: r.client_name,
-        hours: r.duration_minutes / 60,
+        duration_seconds: r.duration_seconds,
         billable: r.billable,
       })),
     })
@@ -126,7 +127,7 @@ export default function ReportsPage() {
         task_name: r.task_name,
         project_name: r.project_name,
         client_name: r.client_name,
-        duration_minutes: r.duration_minutes,
+        duration_seconds: r.duration_seconds,
         billable: r.billable,
       })),
       rangeLabel,
@@ -176,25 +177,25 @@ export default function ReportsPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card>
+            <Card className="border-l-4 border-l-blue-500">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Hours</CardTitle>
               </CardHeader>
-              <CardContent className="text-2xl font-semibold">{summary.totalHours.toFixed(1)}h</CardContent>
+              <CardContent className="text-2xl font-semibold">{formatDuration(summary.totalSeconds)}</CardContent>
             </Card>
-            <Card>
+            <Card className="border-l-4 border-l-emerald-500">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
               </CardHeader>
               <CardContent className="text-2xl font-semibold">{formatCurrency(summary.totalRevenue)}</CardContent>
             </Card>
-            <Card>
+            <Card className="border-l-4 border-l-violet-500">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Projects</CardTitle>
               </CardHeader>
               <CardContent className="text-2xl font-semibold">{summary.projectCount}</CardContent>
             </Card>
-            <Card>
+            <Card className="border-l-4 border-l-amber-500">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Clients</CardTitle>
               </CardHeader>

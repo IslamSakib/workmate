@@ -51,7 +51,7 @@ export async function duplicateTask(task: Task): Promise<Task> {
       date: task.date,
       start_time: task.start_time,
       end_time: task.end_time,
-      duration_minutes: task.duration_minutes,
+      duration_seconds: task.duration_seconds,
       billable: task.billable,
       notes: task.notes,
     })

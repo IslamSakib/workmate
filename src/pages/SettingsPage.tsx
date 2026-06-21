@@ -82,12 +82,13 @@ export default function SettingsPage() {
   if (loading) return null
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">Manage your account and preferences.</p>
       </div>
 
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Profile</CardTitle>
@@ -166,6 +167,7 @@ export default function SettingsPage() {
           </form>
         </CardContent>
       </Card>
+      </div>
 
       <Card>
         <CardHeader>
@@ -174,19 +176,21 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={passwordForm.handleSubmit(onChangePassword)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="password">New password</Label>
-              <Input id="password" type="password" {...passwordForm.register("password")} />
-              {passwordForm.formState.errors.password && (
-                <p className="text-sm text-destructive">{passwordForm.formState.errors.password.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm new password</Label>
-              <Input id="confirmPassword" type="password" {...passwordForm.register("confirmPassword")} />
-              {passwordForm.formState.errors.confirmPassword && (
-                <p className="text-sm text-destructive">{passwordForm.formState.errors.confirmPassword.message}</p>
-              )}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="password">New password</Label>
+                <Input id="password" type="password" {...passwordForm.register("password")} />
+                {passwordForm.formState.errors.password && (
+                  <p className="text-sm text-destructive">{passwordForm.formState.errors.password.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm new password</Label>
+                <Input id="confirmPassword" type="password" {...passwordForm.register("confirmPassword")} />
+                {passwordForm.formState.errors.confirmPassword && (
+                  <p className="text-sm text-destructive">{passwordForm.formState.errors.confirmPassword.message}</p>
+                )}
+              </div>
             </div>
             <Button type="submit" disabled={passwordForm.formState.isSubmitting}>
               Update password

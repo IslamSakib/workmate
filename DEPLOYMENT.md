@@ -3,7 +3,7 @@
 ## 1. Supabase project setup
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Open the SQL editor and run `supabase/migrations/0001_init.sql`. This creates all tables, enums, RLS policies, triggers, and the `attachments` storage bucket.
+2. Open the SQL editor and run `supabase/migrations/0001_init.sql`. This creates all tables, enums, RLS policies, triggers, and the `attachments` storage bucket. If you already had a project from before per-second billing was added, also run `0002_per_second_billing.sql` to migrate it in place (`0001` alone is for brand-new projects only).
 3. In **Project Settings → API**, copy the **Project URL** and **anon public key**.
 4. In **Authentication → URL Configuration**, set the Site URL to your production domain and add `https://yourdomain.com/reset-password` as a redirect URL (needed for the forgot-password flow).
 

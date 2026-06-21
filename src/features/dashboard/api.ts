@@ -19,7 +19,7 @@ interface TaskWithProject {
   id: string
   task_name: string
   date: string
-  duration_minutes: number
+  duration_seconds: number
   billable: boolean
   created_at: string
   projects: { project_name: string; hourly_rate: number | null } | null
@@ -31,7 +31,7 @@ async function getYearTasks(): Promise<TaskWithProject[]> {
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, task_name, date, duration_minutes, billable, created_at, projects(project_name, hourly_rate), clients(client_name)",
+      "id, task_name, date, duration_seconds, billable, created_at, projects(project_name, hourly_rate), clients(client_name)",
     )
     .gte("date", format(yearStart, "yyyy-MM-dd"))
     .order("date", { ascending: false })
@@ -43,13 +43,13 @@ async function getYearTasks(): Promise<TaskWithProject[]> {
 function revenueFor(task: TaskWithProject) {
   if (!task.billable) return 0
   const rate = task.projects?.hourly_rate ?? 0
-  return (task.duration_minutes / 60) * rate
+  return (task.duration_seconds / 3600) * rate
 }
 
 function sumWithin(tasks: TaskWithProject[], from: Date) {
   const now = new Date()
   const filtered = tasks.filter((t) => isWithinInterval(new Date(t.date), { start: from, end: now }))
-  const hours = filtered.reduce((acc, t) => acc + t.duration_minutes / 60, 0)
+  const hours = filtered.reduce((acc, t) => acc + t.duration_seconds / 3600, 0)
   const revenue = filtered.reduce((acc, t) => acc + revenueFor(t), 0)
   return { hours, revenue }
 }
@@ -97,7 +97,7 @@ export async function getMonthlyTrend(): Promise<TrendPoint[]> {
         new Date(t.date).getMonth() === monthDate.getMonth() &&
         new Date(t.date).getFullYear() === monthDate.getFullYear(),
     )
-    const hours = monthTasks.reduce((acc, t) => acc + t.duration_minutes / 60, 0)
+    const hours = monthTasks.reduce((acc, t) => acc + t.duration_seconds / 3600, 0)
     const revenue = monthTasks.reduce((acc, t) => acc + revenueFor(t), 0)
     months.push({ label, hours: Math.round(hours * 10) / 10, revenue: Math.round(revenue) })
   }
@@ -109,7 +109,7 @@ export async function getRecentTasks(limit = 5): Promise<RecentTaskRow[]> {
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, task_name, date, duration_minutes, billable, projects(project_name), clients(client_name)",
+      "id, task_name, date, duration_seconds, billable, projects(project_name), clients(client_name)",
     )
     .order("created_at", { ascending: false })
     .limit(limit)
@@ -120,7 +120,7 @@ export async function getRecentTasks(limit = 5): Promise<RecentTaskRow[]> {
     id: t.id,
     task_name: t.task_name,
     date: t.date,
-    duration_minutes: t.duration_minutes,
+    duration_seconds: t.duration_seconds,
     billable: t.billable,
     project_name: t.projects?.project_name ?? null,
     client_name: t.clients?.client_name ?? null,

@@ -6,7 +6,7 @@ interface RawTaskRow {
   id: string
   task_name: string
   date: string
-  duration_minutes: number
+  duration_seconds: number
   billable: boolean
   project_id: string | null
   client_id: string | null
@@ -18,7 +18,7 @@ export async function getReportRows(from: Date, to: Date): Promise<RawTaskRow[]>
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, task_name, date, duration_minutes, billable, project_id, client_id, projects(project_name, hourly_rate), clients(client_name)",
+      "id, task_name, date, duration_seconds, billable, project_id, client_id, projects(project_name, hourly_rate), clients(client_name)",
     )
     .gte("date", format(from, "yyyy-MM-dd"))
     .lte("date", format(to, "yyyy-MM-dd"))
@@ -35,20 +35,20 @@ export function toReportRows(raw: RawTaskRow[]): ReportRow[] {
     task_name: t.task_name,
     project_name: t.projects?.project_name ?? null,
     client_name: t.clients?.client_name ?? null,
-    duration_minutes: t.duration_minutes,
+    duration_seconds: t.duration_seconds,
     billable: t.billable,
   }))
 }
 
 export function summarize(raw: RawTaskRow[]): ReportSummary {
-  const totalHours = raw.reduce((acc, t) => acc + t.duration_minutes / 60, 0)
+  const totalSeconds = raw.reduce((acc, t) => acc + t.duration_seconds, 0)
   const totalRevenue = raw.reduce(
-    (acc, t) => acc + (t.billable ? (t.duration_minutes / 60) * (t.projects?.hourly_rate ?? 0) : 0),
+    (acc, t) => acc + (t.billable ? (t.duration_seconds / 3600) * (t.projects?.hourly_rate ?? 0) : 0),
     0,
   )
   const projectCount = new Set(raw.map((t) => t.project_id).filter(Boolean)).size
   const clientCount = new Set(raw.map((t) => t.client_id).filter(Boolean)).size
-  return { totalHours, totalRevenue, projectCount, clientCount }
+  return { totalSeconds, totalRevenue, projectCount, clientCount }
 }
 
 export function buildChartSeries(raw: RawTaskRow[], from: Date, to: Date): ReportChartPoint[] {
@@ -59,9 +59,9 @@ export function buildChartSeries(raw: RawTaskRow[], from: Date, to: Date): Repor
     return months.map((month) => {
       const monthKey = format(month, "yyyy-MM")
       const monthTasks = raw.filter((t) => t.date.startsWith(monthKey))
-      const hours = monthTasks.reduce((acc, t) => acc + t.duration_minutes / 60, 0)
+      const hours = monthTasks.reduce((acc, t) => acc + t.duration_seconds / 3600, 0)
       const revenue = monthTasks.reduce(
-        (acc, t) => acc + (t.billable ? (t.duration_minutes / 60) * (t.projects?.hourly_rate ?? 0) : 0),
+        (acc, t) => acc + (t.billable ? (t.duration_seconds / 3600) * (t.projects?.hourly_rate ?? 0) : 0),
         0,
       )
       return { label: format(month, "MMM"), hours: Math.round(hours * 10) / 10, revenue: Math.round(revenue) }
@@ -72,9 +72,9 @@ export function buildChartSeries(raw: RawTaskRow[], from: Date, to: Date): Repor
   return days.map((day) => {
     const dayKey = format(day, "yyyy-MM-dd")
     const dayTasks = raw.filter((t) => t.date === dayKey)
-    const hours = dayTasks.reduce((acc, t) => acc + t.duration_minutes / 60, 0)
+    const hours = dayTasks.reduce((acc, t) => acc + t.duration_seconds / 3600, 0)
     const revenue = dayTasks.reduce(
-      (acc, t) => acc + (t.billable ? (t.duration_minutes / 60) * (t.projects?.hourly_rate ?? 0) : 0),
+      (acc, t) => acc + (t.billable ? (t.duration_seconds / 3600) * (t.projects?.hourly_rate ?? 0) : 0),
       0,
     )
     return { label: format(day, "MMM d"), hours: Math.round(hours * 10) / 10, revenue: Math.round(revenue) }

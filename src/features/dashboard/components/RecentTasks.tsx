@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { formatDuration } from "@/lib/duration"
 import type { RecentTaskRow } from "../types"
 
 export function RecentTasks({ tasks }: { tasks: RecentTaskRow[] }) {
@@ -20,7 +21,7 @@ export function RecentTasks({ tasks }: { tasks: RecentTaskRow[] }) {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <span className="text-xs text-muted-foreground">
-                {(task.duration_minutes / 60).toFixed(1)}h
+                {formatDuration(task.duration_seconds)}
               </span>
               <Badge variant={task.billable ? "default" : "secondary"}>
                 {task.billable ? "Billable" : "Non-billable"}

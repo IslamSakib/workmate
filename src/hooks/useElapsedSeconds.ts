@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { getCurrentElapsedSeconds, useTimerStore } from "@/store/timerStore"
+import { formatDuration } from "@/lib/duration"
 
 export function useElapsedSeconds() {
   const status = useTimerStore((s) => s.status)
@@ -16,9 +17,4 @@ export function useElapsedSeconds() {
   return getCurrentElapsedSeconds({ status, startedAt, accumulatedSeconds })
 }
 
-export function formatElapsed(totalSeconds: number) {
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  return [hours, minutes, seconds].map((n) => String(n).padStart(2, "0")).join(":")
-}
+export const formatElapsed = formatDuration
