@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -25,7 +26,9 @@ import type { BillableTask, Invoice, InvoiceItem } from "../types"
 
 const STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
+  { value: "scheduled", label: "Scheduled" },
   { value: "sent", label: "Sent" },
+  { value: "partial", label: "Partially Paid" },
   { value: "paid", label: "Paid" },
   { value: "overdue", label: "Overdue" },
 ]
@@ -81,6 +84,8 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
               due_date: invoice.due_date,
               period_start: invoice.period_start ?? new Date().toISOString().slice(0, 10),
               period_end: invoice.period_end ?? new Date().toISOString().slice(0, 10),
+              scheduled_date: invoice.scheduled_date,
+              notes: invoice.notes,
             }
           : {
               invoice_number: nextInvoiceNumber(),
@@ -238,6 +243,16 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
             <DatePicker value={watch("due_date")} onChange={(v) => setValue("due_date", v)} />
           </div>
 
+          {watch("status") === "scheduled" && (
+            <div className="space-y-2">
+              <Label>Scheduled date</Label>
+              <DatePicker value={watch("scheduled_date")} onChange={(v) => setValue("scheduled_date", v)} />
+              <p className="text-xs text-muted-foreground">
+                Auto-flips to "Sent" once this date passes and anyone opens the app.
+              </p>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Billing period start</Label>
             <DatePicker value={watch("period_start")} onChange={(v) => setValue("period_start", v ?? "")} />
@@ -292,6 +307,15 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
               </label>
             ))}
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="notes">Notes</Label>
+          <Textarea
+            id="notes"
+            {...register("notes")}
+            placeholder="Optional notes shown to the client, e.g. payment instructions."
+          />
         </div>
 
         <div className="space-y-1 rounded-md border p-3 text-sm">

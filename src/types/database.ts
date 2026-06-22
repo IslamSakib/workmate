@@ -1,10 +1,33 @@
 export type ProjectStatus = "active" | "paused" | "completed" | "cancelled"
-export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue"
+export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "scheduled" | "partial"
+export type RecurringInvoiceFrequency = "weekly" | "monthly" | "quarterly"
 export type CurrencyCode = "USD" | "BDT" | "EUR" | "GBP" | "PHP"
+export type TeamRole = "admin" | "manager" | "employee"
+export type TaskApprovalStatus = "draft" | "submitted" | "approved" | "rejected"
+export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
 export interface Database {
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          id: string
+          user_id: string
+          actor_id: string | null
+          table_name: string
+          record_id: string | null
+          action: string
+          old_values: Json | null
+          new_values: Json | null
+          created_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["audit_logs"]["Row"]> & {
+          table_name: string
+          action: string
+        }
+        Update: Partial<Database["public"]["Tables"]["audit_logs"]["Row"]>
+        Relationships: []
+      }
       profiles: {
         Row: {
           id: string
@@ -24,6 +47,7 @@ export interface Database {
         Row: {
           id: string
           user_id: string
+          created_by: string | null
           client_name: string
           company_name: string | null
           email: string | null
@@ -40,10 +64,55 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["clients"]["Row"]>
         Relationships: []
       }
+      expenses: {
+        Row: {
+          id: string
+          user_id: string
+          created_by: string | null
+          client_id: string | null
+          project_id: string | null
+          category: string
+          amount: number
+          currency: CurrencyCode
+          date: string
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["expenses"]["Row"]> & {
+          category: string
+          amount: number
+        }
+        Update: Partial<Database["public"]["Tables"]["expenses"]["Row"]>
+        Relationships: []
+      }
+      retainers: {
+        Row: {
+          id: string
+          user_id: string
+          created_by: string | null
+          client_id: string
+          monthly_fee: number
+          included_hours: number
+          overage_rate: number
+          currency: CurrencyCode
+          next_billing_date: string
+          active: boolean
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["retainers"]["Row"]> & {
+          client_id: string
+        }
+        Update: Partial<Database["public"]["Tables"]["retainers"]["Row"]>
+        Relationships: []
+      }
       projects: {
         Row: {
           id: string
           user_id: string
+          created_by: string | null
           client_id: string | null
           project_name: string
           hourly_rate: number | null
@@ -53,6 +122,8 @@ export interface Database {
           start_date: string | null
           due_date: string | null
           notes: string | null
+          client_approval_status: "pending" | "approved" | null
+          client_approved_at: string | null
           created_at: string
           updated_at: string
         }
@@ -66,6 +137,7 @@ export interface Database {
         Row: {
           id: string
           user_id: string
+          created_by: string | null
           project_id: string | null
           client_id: string | null
           task_name: string
@@ -76,6 +148,11 @@ export interface Database {
           billable: boolean
           notes: string | null
           invoice_id: string | null
+          approval_status: TaskApprovalStatus
+          submitted_at: string | null
+          approved_by: string | null
+          approved_at: string | null
+          rejection_reason: string | null
           created_at: string
           updated_at: string
         }
@@ -89,6 +166,7 @@ export interface Database {
         Row: {
           id: string
           user_id: string
+          created_by: string | null
           project_id: string | null
           client_id: string | null
           task_id: string | null
@@ -108,6 +186,7 @@ export interface Database {
         Row: {
           id: string
           user_id: string
+          created_by: string | null
           client_id: string | null
           project_id: string | null
           invoice_number: string
@@ -118,6 +197,11 @@ export interface Database {
           due_date: string | null
           period_start: string | null
           period_end: string | null
+          notes: string | null
+          scheduled_date: string | null
+          last_reminder_sent_at: string | null
+          reminder_count: number
+          amount_paid: number
           created_at: string
           updated_at: string
         }
@@ -125,6 +209,45 @@ export interface Database {
           invoice_number: string
         }
         Update: Partial<Database["public"]["Tables"]["invoices"]["Row"]>
+        Relationships: []
+      }
+      invoice_payments: {
+        Row: {
+          id: string
+          invoice_id: string
+          amount: number
+          paid_date: string
+          method: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["invoice_payments"]["Row"]> & {
+          invoice_id: string
+          amount: number
+        }
+        Update: Partial<Database["public"]["Tables"]["invoice_payments"]["Row"]>
+        Relationships: []
+      }
+      recurring_invoices: {
+        Row: {
+          id: string
+          user_id: string
+          created_by: string | null
+          client_id: string | null
+          project_id: string | null
+          currency: CurrencyCode
+          frequency: RecurringInvoiceFrequency
+          next_run_date: string
+          active: boolean
+          last_generated_invoice_id: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["recurring_invoices"]["Row"]> & {
+          frequency: RecurringInvoiceFrequency
+        }
+        Update: Partial<Database["public"]["Tables"]["recurring_invoices"]["Row"]>
         Relationships: []
       }
       invoice_items: {
@@ -166,6 +289,43 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["attachments"]["Row"]>
         Relationships: []
       }
+      team_members: {
+        Row: {
+          id: string
+          account_id: string
+          member_id: string | null
+          invited_email: string
+          role: TeamRole
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["team_members"]["Row"]> & {
+          account_id: string
+          invited_email: string
+        }
+        Update: Partial<Database["public"]["Tables"]["team_members"]["Row"]>
+        Relationships: []
+      }
+      client_portal_access: {
+        Row: {
+          id: string
+          account_id: string
+          client_id: string
+          member_id: string | null
+          invited_email: string
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["client_portal_access"]["Row"]> & {
+          account_id: string
+          client_id: string
+          invited_email: string
+        }
+        Update: Partial<Database["public"]["Tables"]["client_portal_access"]["Row"]>
+        Relationships: []
+      }
       settings: {
         Row: {
           user_id: string
@@ -184,7 +344,12 @@ export interface Database {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      approve_project_deliverable: {
+        Args: { target_project_id: string }
+        Returns: undefined
+      }
+    }
   }
 }
 

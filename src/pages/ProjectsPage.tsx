@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -10,13 +11,29 @@ import { ProjectFormDialog } from "@/features/projects/components/ProjectFormDia
 import { getProjectColumns } from "@/features/projects/components/columns"
 import type { ProjectWithClient } from "@/features/projects/types"
 import type { ProjectInput } from "@/features/projects/schema"
+import { hasMinRole } from "@/lib/permissions"
+import { useAuthStore } from "@/store/authStore"
 
 export default function ProjectsPage() {
+  const role = useAuthStore((s) => s.role)
+  const readOnly = !hasMinRole(role, "manager")
   const [projects, setProjects] = useState<ProjectWithClient[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<ProjectWithClient | null>(null)
   const [deleting, setDeleting] = useState<ProjectWithClient | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setEditing(null)
+      setFormOpen(true)
+      setSearchParams((prev) => {
+        prev.delete("new")
+        return prev
+      })
+    }
+  }, [searchParams, setSearchParams])
 
   const load = async () => {
     setLoading(true)
@@ -63,24 +80,27 @@ export default function ProjectsPage() {
       setFormOpen(true)
     },
     onDelete: (project) => setDeleting(project),
+    readOnly,
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
           <p className="text-sm text-muted-foreground">Track project status and billing.</p>
         </div>
-        <Button
-          onClick={() => {
-            setEditing(null)
-            setFormOpen(true)
-          }}
-        >
-          <Plus className="size-4" />
-          New Project
-        </Button>
+        {!readOnly && (
+          <Button
+            onClick={() => {
+              setEditing(null)
+              setFormOpen(true)
+            }}
+          >
+            <Plus className="size-4" />
+            New Project
+          </Button>
+        )}
       </div>
 
       {loading ? (

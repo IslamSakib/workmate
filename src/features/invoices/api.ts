@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabaseClient"
+import { useAuthStore } from "@/store/authStore"
 import type { InvoiceInput } from "./schema"
-import type { BillableTask, Invoice, InvoiceItem, InvoiceWithRelations } from "./types"
+import type { BillableTask, Invoice, InvoiceItem, InvoicePayment, InvoiceWithRelations } from "./types"
 
 function friendlyError(error: { code?: string; message: string }): Error {
   if (error.code === "23505") {
@@ -49,6 +50,7 @@ export async function listBillableTasks(filters: {
     .gte("date", filters.periodStart)
     .lte("date", filters.periodEnd)
     .eq("billable", true)
+    .eq("approval_status", "approved")
     .order("date", { ascending: true })
 
   query = filters.excludeInvoiceId
@@ -81,14 +83,15 @@ function totalOf(items: BillableTask[]) {
 }
 
 export async function createInvoice(input: InvoiceInput, items: BillableTask[]): Promise<Invoice> {
+  const accountId = useAuthStore.getState().accountId
   const { data: userData } = await supabase.auth.getUser()
-  const userId = userData.user?.id
-  if (!userId) throw new Error("Not authenticated")
+  if (!accountId || !userData.user) throw new Error("Not authenticated")
 
   const { data: invoice, error } = await supabase
     .from("invoices")
     .insert({
-      user_id: userId,
+      user_id: accountId,
+      created_by: userData.user.id,
       invoice_number: input.invoice_number,
       client_id: input.client_id,
       project_id: input.project_id,
@@ -98,6 +101,8 @@ export async function createInvoice(input: InvoiceInput, items: BillableTask[]):
       due_date: input.due_date,
       period_start: input.period_start,
       period_end: input.period_end,
+      scheduled_date: input.scheduled_date,
+      notes: input.notes,
       total: totalOf(items),
     })
     .select()
@@ -125,6 +130,8 @@ export async function updateInvoice(id: string, input: InvoiceInput, items: Bill
       due_date: input.due_date,
       period_start: input.period_start,
       period_end: input.period_end,
+      scheduled_date: input.scheduled_date,
+      notes: input.notes,
       total: totalOf(items),
     })
     .eq("id", id)
@@ -164,5 +171,77 @@ async function linkInvoiceItems(invoiceId: string, items: BillableTask[]) {
 
 export async function deleteInvoice(id: string): Promise<void> {
   const { error } = await supabase.from("invoices").delete().eq("id", id)
+  if (error) throw error
+}
+
+export async function getInvoicePayments(invoiceId: string): Promise<InvoicePayment[]> {
+  const { data, error } = await supabase
+    .from("invoice_payments")
+    .select("*")
+    .eq("invoice_id", invoiceId)
+    .order("paid_date", { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function recordPayment(
+  invoiceId: string,
+  payment: { amount: number; paid_date: string; method?: string | null; notes?: string | null },
+): Promise<void> {
+  const { error: insertError } = await supabase.from("invoice_payments").insert({
+    invoice_id: invoiceId,
+    amount: payment.amount,
+    paid_date: payment.paid_date,
+    method: payment.method,
+    notes: payment.notes,
+  })
+  if (insertError) throw insertError
+
+  const { data: payments, error: paymentsError } = await supabase
+    .from("invoice_payments")
+    .select("amount")
+    .eq("invoice_id", invoiceId)
+  if (paymentsError) throw paymentsError
+
+  const { data: invoice, error: invoiceError } = await supabase
+    .from("invoices")
+    .select("total")
+    .eq("id", invoiceId)
+    .single()
+  if (invoiceError) throw invoiceError
+
+  const amountPaid = (payments ?? []).reduce((acc, p) => acc + Number(p.amount), 0)
+  const status = amountPaid >= Number(invoice.total) ? "paid" : amountPaid > 0 ? "partial" : undefined
+
+  const { error: updateError } = await supabase
+    .from("invoices")
+    .update({ amount_paid: amountPaid, ...(status ? { status } : {}) })
+    .eq("id", invoiceId)
+  if (updateError) throw updateError
+}
+
+/** Flips this account's scheduled invoices whose scheduled_date has passed to "sent". Lazy housekeeping, no toast. */
+export async function promoteScheduledInvoices(): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10)
+  const { error } = await supabase
+    .from("invoices")
+    .update({ status: "sent" })
+    .eq("status", "scheduled")
+    .lte("scheduled_date", today)
+  if (error) throw error
+}
+
+export async function recordReminderSent(invoiceId: string): Promise<void> {
+  const { data: invoice, error: fetchError } = await supabase
+    .from("invoices")
+    .select("reminder_count")
+    .eq("id", invoiceId)
+    .single()
+  if (fetchError) throw fetchError
+
+  const { error } = await supabase
+    .from("invoices")
+    .update({ last_reminder_sent_at: new Date().toISOString(), reminder_count: invoice.reminder_count + 1 })
+    .eq("id", invoiceId)
   if (error) throw error
 }

@@ -3,6 +3,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Semantic color usage:
+ * success  (green)  - paid invoices, completed/positive states, growth
+ * warning  (amber)  - upcoming deadlines, due-soon, pending approval
+ * destructive (red) - overdue, failed, errors (already defined, do not duplicate)
+ * analytics (purple)- reports/analytics accents
+ * info     (cyan)   - time tracking / timer UI
+ */
 :root {
   --radius: 0.75rem;
   --background: oklch(0.99 0.002 264);
@@ -20,6 +28,14 @@
   --accent: oklch(0.95 0.04 262.9);
   --accent-foreground: oklch(0.35 0.16 262.9);
   --destructive: oklch(0.577 0.245 27.325);
+  --success: oklch(0.6 0.17 145);
+  --success-foreground: oklch(0.99 0.005 145);
+  --warning: oklch(0.75 0.17 70);
+  --warning-foreground: oklch(0.2 0.04 70);
+  --analytics: oklch(0.58 0.22 310);
+  --analytics-foreground: oklch(0.99 0.005 310);
+  --info: oklch(0.65 0.15 200);
+  --info-foreground: oklch(0.99 0.005 200);
   --border: oklch(0.91 0.012 264);
   --input: oklch(0.91 0.012 264);
   --ring: oklch(0.65 0.18 262.9);
@@ -54,6 +70,14 @@
   --accent: oklch(0.3 0.06 262.9);
   --accent-foreground: oklch(0.88 0.06 262.9);
   --destructive: oklch(0.704 0.191 22.216);
+  --success: oklch(0.72 0.18 145);
+  --success-foreground: oklch(0.16 0.02 145);
+  --warning: oklch(0.78 0.16 70);
+  --warning-foreground: oklch(0.18 0.03 70);
+  --analytics: oklch(0.7 0.2 310);
+  --analytics-foreground: oklch(0.16 0.02 310);
+  --info: oklch(0.72 0.14 200);
+  --info-foreground: oklch(0.16 0.02 200);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.6 0.18 262.9);
@@ -88,6 +112,14 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-analytics: var(--analytics);
+  --color-analytics-foreground: var(--analytics-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

@@ -36,6 +36,7 @@ export interface InvoicePdfData {
   project_name?: string | null
   items: InvoicePdfItem[]
   total: number
+  notes?: string | null
 }
 
 const ACCENT = rgb(0.33, 0.36, 0.85)
@@ -136,6 +137,16 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
 
   ctx.cursorY = boxY - 24
   drawDivider(ctx)
+
+  if (data.notes) {
+    ctx.cursorY -= 16
+    ensureSpace(ctx, 30)
+    drawText(ctx, "NOTES", { x: MARGIN, y: ctx.cursorY, size: 9, bold: true, color: GRAY })
+    ctx.cursorY -= 14
+    drawText(ctx, data.notes, { x: MARGIN, y: ctx.cursorY, size: 10, color: DARK })
+    ctx.cursorY -= 16
+  }
+
   const thankYou = "Thank you for your business."
   const thankYouWidth = ctx.font.widthOfTextAtSize(thankYou, 10)
   drawText(ctx, thankYou, { x: (PAGE_WIDTH - thankYouWidth) / 2, y: ctx.cursorY - 6, size: 10, color: GRAY })

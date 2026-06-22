@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -10,13 +11,18 @@ import {
   deleteInvoice,
   getInvoiceItems,
   listInvoices,
+  promoteScheduledInvoices,
+  recordPayment,
+  recordReminderSent,
   updateInvoice,
 } from "@/features/invoices/api"
 import { InvoiceFormDialog } from "@/features/invoices/components/InvoiceFormDialog"
+import { RecordPaymentDialog } from "@/features/invoices/components/RecordPaymentDialog"
 import { getInvoiceColumns } from "@/features/invoices/components/columns"
 import type { BillableTask, InvoiceItem, InvoiceWithRelations } from "@/features/invoices/types"
 import type { InvoiceInput } from "@/features/invoices/schema"
 import { generateInvoicePdf } from "@/lib/pdf/invoicePdf"
+import { formatCurrency } from "@/lib/currency"
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<InvoiceWithRelations[]>([])
@@ -25,6 +31,20 @@ export default function InvoicesPage() {
   const [editing, setEditing] = useState<InvoiceWithRelations | null>(null)
   const [editingItems, setEditingItems] = useState<InvoiceItem[]>([])
   const [deleting, setDeleting] = useState<InvoiceWithRelations | null>(null)
+  const [payingInvoice, setPayingInvoice] = useState<InvoiceWithRelations | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setEditing(null)
+      setEditingItems([])
+      setFormOpen(true)
+      setSearchParams((prev) => {
+        prev.delete("new")
+        return prev
+      })
+    }
+  }, [searchParams, setSearchParams])
 
   const load = async () => {
     setLoading(true)
@@ -38,7 +58,9 @@ export default function InvoicesPage() {
   }
 
   useEffect(() => {
-    load()
+    promoteScheduledInvoices()
+      .catch(() => {})
+      .finally(load)
   }, [])
 
   const handleSubmit = async (values: InvoiceInput, items: BillableTask[]) => {
@@ -88,9 +110,33 @@ export default function InvoicesPage() {
           amount: Number(i.amount),
         })),
         total: Number(invoice.total),
+        notes: invoice.notes,
       })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to export PDF")
+    }
+  }
+
+  const handleRecordPayment = async (amount: number, paidDate: string, method: string) => {
+    if (!payingInvoice) return
+    await recordPayment(payingInvoice.id, { amount, paid_date: paidDate, method: method || null })
+    toast.success("Payment recorded")
+    load()
+  }
+
+  const handleSendReminder = async (invoice: InvoiceWithRelations) => {
+    const subject = encodeURIComponent(`Reminder: Invoice ${invoice.invoice_number}`)
+    const body = encodeURIComponent(
+      `Hi${invoice.clients?.client_name ? ` ${invoice.clients.client_name}` : ""},\n\nThis is a reminder that invoice ${invoice.invoice_number} for ${formatCurrency(Number(invoice.total) - Number(invoice.amount_paid), invoice.currency)} is ${invoice.status === "overdue" ? "overdue" : "due"}${invoice.due_date ? ` (due ${invoice.due_date})` : ""}. Please let us know if you have any questions.\n\nThanks!`,
+    )
+    const link = document.createElement("a")
+    link.href = `mailto:${invoice.clients?.email ?? ""}?subject=${subject}&body=${body}`
+    link.click()
+    try {
+      await recordReminderSent(invoice.id)
+      load()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to record reminder")
     }
   }
 
@@ -107,10 +153,12 @@ export default function InvoicesPage() {
     },
     onDelete: (invoice) => setDeleting(invoice),
     onExport: handleExport,
+    onRecordPayment: (invoice) => setPayingInvoice(invoice),
+    onSendReminder: handleSendReminder,
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Invoices</h1>
@@ -160,6 +208,13 @@ export default function InvoicesPage() {
         title="Delete invoice?"
         description={`This will permanently delete invoice ${deleting?.invoice_number}.`}
         onConfirm={handleDelete}
+      />
+
+      <RecordPaymentDialog
+        open={!!payingInvoice}
+        onOpenChange={(open) => !open && setPayingInvoice(null)}
+        invoice={payingInvoice}
+        onSubmit={handleRecordPayment}
       />
     </div>
   )

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient"
+import { useAuthStore } from "@/store/authStore"
 import type { ProjectInput } from "./schema"
 import type { Project, ProjectWithClient } from "./types"
 
@@ -12,13 +13,13 @@ export async function listProjects(): Promise<ProjectWithClient[]> {
 }
 
 export async function createProject(input: ProjectInput): Promise<Project> {
+  const accountId = useAuthStore.getState().accountId
   const { data: userData } = await supabase.auth.getUser()
-  const userId = userData.user?.id
-  if (!userId) throw new Error("Not authenticated")
+  if (!accountId || !userData.user) throw new Error("Not authenticated")
 
   const { data, error } = await supabase
     .from("projects")
-    .insert({ ...input, user_id: userId })
+    .insert({ ...input, user_id: accountId, created_by: userData.user.id })
     .select()
     .single()
   if (error) throw error

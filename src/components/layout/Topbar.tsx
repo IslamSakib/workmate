@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useTheme } from "next-themes"
-import { Menu, LogOut, Settings as SettingsIcon, Moon, Sun } from "lucide-react"
+import { Menu, LogOut, Settings as SettingsIcon, Moon, Sun, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import {
@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { SidebarNav } from "./Sidebar"
 import { useAuthStore } from "@/store/authStore"
 
-export function Topbar() {
+export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
   const navigate = useNavigate()
   const { user, signOut } = useAuthStore()
   const { resolvedTheme, setTheme } = useTheme()
@@ -29,7 +29,7 @@ export function Topbar() {
   }
 
   return (
-    <header className="flex h-14 items-center justify-between border-b px-4">
+    <header className="flex h-12 items-center justify-between border-b px-4">
       <div className="flex items-center gap-2">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <Button
@@ -42,7 +42,7 @@ export function Topbar() {
             <Menu className="size-5" />
           </Button>
           <SheetContent side="left" className="w-60 p-0">
-            <SheetHeader className="h-14 justify-center border-b px-4">
+            <SheetHeader className="h-12 justify-center border-b px-4">
               <SheetTitle className="text-left text-lg font-semibold tracking-tight">
                 WorkMate
               </SheetTitle>
@@ -54,6 +54,25 @@ export function Topbar() {
       </div>
 
       <div className="flex items-center gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          className="hidden gap-2 text-muted-foreground sm:flex"
+          onClick={onOpenSearch}
+        >
+          <Search className="size-4" />
+          Search...
+          <kbd className="ml-2 rounded border bg-muted px-1.5 py-0.5 text-xs">Ctrl K</kbd>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="sm:hidden"
+          aria-label="Search"
+          onClick={onOpenSearch}
+        >
+          <Search className="size-5" />
+        </Button>
         <Button
           variant="ghost"
           size="icon"
