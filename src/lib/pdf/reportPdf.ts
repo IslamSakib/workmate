@@ -35,11 +35,11 @@ export async function generateReportPdf(data: ReportPdfData) {
   drawTable(
     ctx,
     [
-      { label: "Date", width: 70 },
-      { label: "Task", width: 150 },
-      { label: "Project", width: 110 },
-      { label: "Client", width: 100 },
-      { label: "Duration", width: 70, align: "right" },
+      { label: "Date", width: 65 },
+      { label: "Task", width: 190 },
+      { label: "Project", width: 90 },
+      { label: "Client", width: 90 },
+      { label: "Duration", width: 64, align: "right" },
     ],
     data.rows.map((row) => [
       row.date,

@@ -13,7 +13,7 @@ WorkMate is a freelancer productivity SaaS: time tracking, project/client/task m
 - `npm run lint` — ESLint over the whole repo
 - `npm run preview` — preview the production build locally
 
-There is no test suite configured. There is no command to run a single test.
+There is no automated test suite configured. There is no command to run a single test. `TESTING_GUIDE.md` is a manual QA walkthrough (per feature, per role: Owner/Manager/Employee/Client Portal) — use it to verify a change by hand rather than looking for a test runner.
 
 Database changes are applied by running SQL files directly in the Supabase SQL editor (or `supabase db push`) — there is no migration framework wiring this up automatically. `0001_init.sql` is the full schema for a brand-new project; every later file is an idempotent upgrade script (safe to re-run) for databases created before that feature existed:
 - `0002_per_second_billing.sql` — renames `duration_minutes`→`duration_seconds` converting values, adds `tasks.invoice_id`, replaces `invoice_items`' manual line-item columns with task-derived ones
@@ -78,7 +78,7 @@ Pages in `src/pages/` are route-level and compose feature components; routing/la
 
 ### Billing is per-second, not per-minute
 
-`tasks.duration_seconds` and `invoice_items.duration_seconds` are the source of truth for time worked — there is no minutes-granularity field anywhere. Revenue/amount math is always `(duration_seconds / 3600) * hourly_rate`, never rounded to whole minutes. `src/lib/duration.ts` exports the single `formatDuration(seconds) → "H:MM:SS"` helper used for every per-entry/per-row time display (Tasks table, Recent Tasks, Reports table, Time Log PDF, Report PDF, Invoice PDF/dialog, Timer). Aggregate KPI tiles (Dashboard hours, Reports "Total Hours" card) are the one deliberate exception — those stay as decimal hours (e.g. "12.5h"), matching the convention of tools like Toggl/Harvest for summary stats.
+`tasks.duration_seconds` and `invoice_items.duration_seconds` are the source of truth for time worked — there is no minutes-granularity field anywhere. Revenue/amount math is always `(duration_seconds / 3600) * hourly_rate`, never rounded to whole minutes. `src/lib/duration.ts` exports the single `formatDuration(seconds) → "H:MM:SS"` helper used for every per-entry/per-row time display (Tasks table, Recent Tasks, Reports table, Report PDF, Invoice PDF/dialog, Timer). Aggregate KPI tiles (Dashboard hours, Reports "Total Hours" card) are the one deliberate exception — those stay as decimal hours (e.g. "12.5h"), matching the convention of tools like Toggl/Harvest for summary stats.
 
 ### Timer state — timers are tasks
 
@@ -100,7 +100,7 @@ Partial payments, scheduled invoices, and recurring invoices are all **client-dr
 
 ### PDF generation
 
-`src/lib/pdf/` builds invoices, reports, and time logs as PDFs client-side with `pdf-lib` (`invoicePdf.ts`, `reportPdf.ts`, `timeLogPdf.ts`, with shared layout helpers in `shared.ts` — including `drawRect`/`drawText`/`ensureSpace` for custom layouts and a `headerFill` option on `drawTable` for shaded table headers). No server round-trip — PDFs are generated and downloaded entirely in the browser. `invoicePdf.ts` is the most elaborate template (accent header bar, two-column Billed To/Invoice Details block, highlighted Total Due box) and is the reference to follow if other PDFs need similar polish.
+`src/lib/pdf/` builds invoices and reports as PDFs client-side with `pdf-lib` (`invoicePdf.ts`, `reportPdf.ts`, with shared layout helpers in `shared.ts` — including `drawRect`/`drawText`/`ensureSpace` for custom layouts and a `headerFill` option on `drawTable` for shaded table headers). All pages are fixed at A4 (`PAGE_WIDTH`/`PAGE_HEIGHT` in `shared.ts`). `drawTable`'s cells word-wrap to their column's `width` (hard-breaking a single overlong word) rather than drawing a single line, so long task names grow the row height instead of overflowing into the next column — respect existing column `width`s (they're sized to sum to the A4 content width) when adding table columns. No server round-trip — PDFs are generated and downloaded entirely in the browser. `invoicePdf.ts` is the most elaborate template (accent header bar, two-column Billed To/Invoice Details block, highlighted Total Due box) and is the reference to follow if other PDFs need similar polish.
 
 ### Theming
 

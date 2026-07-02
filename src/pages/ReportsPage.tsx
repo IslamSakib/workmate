@@ -8,7 +8,7 @@ import {
   startOfWeek,
   startOfYear,
 } from "date-fns"
-import { Download, FileText } from "lucide-react"
+import { FileText } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,7 +21,6 @@ import { formatDuration } from "@/lib/duration"
 import { buildChartSeries, getReportRows, summarize, toReportRows } from "@/features/reports/api"
 import type { ReportChartPoint, ReportPreset, ReportRow, ReportSummary } from "@/features/reports/types"
 import { generateReportPdf } from "@/lib/pdf/reportPdf"
-import { generateTimeLogPdf } from "@/lib/pdf/timeLogPdf"
 import {
   Area,
   AreaChart,
@@ -120,20 +119,6 @@ export default function ReportsPage() {
     })
   }
 
-  const handleExportTimeLog = () => {
-    generateTimeLogPdf(
-      rows.map((r) => ({
-        date: r.date,
-        task_name: r.task_name,
-        project_name: r.project_name,
-        client_name: r.client_name,
-        duration_seconds: r.duration_seconds,
-        billable: r.billable,
-      })),
-      rangeLabel,
-    )
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -142,10 +127,6 @@ export default function ReportsPage() {
           <p className="text-sm text-muted-foreground">{rangeLabel}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportTimeLog}>
-            <Download className="size-4" />
-            Time Log PDF
-          </Button>
           <Button onClick={handleExportReport}>
             <FileText className="size-4" />
             Report PDF

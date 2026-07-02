@@ -104,10 +104,10 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
   drawTable(
     ctx,
     [
-      { label: "Task", width: 195 },
-      { label: "Date", width: 75 },
-      { label: "Duration", width: 95, align: "right" },
-      { label: "Rate", width: 65, align: "right" },
+      { label: "Task", width: 220 },
+      { label: "Date", width: 70 },
+      { label: "Duration", width: 80, align: "right" },
+      { label: "Rate", width: 60, align: "right" },
       { label: "Amount", width: 70, align: "right" },
     ],
     data.items.map((item) => [

@@ -85,6 +85,47 @@ export interface TableColumn {
   align?: "left" | "right"
 }
 
+const CELL_GAP = 8
+const LINE_HEIGHT = 11
+
+// Wraps text on word boundaries to fit maxWidth (hard-breaking a single word
+// that alone is wider than the column) so long cell content never bleeds
+// into the next column.
+function wrapText(font: PDFFont, text: string, size: number, maxWidth: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean)
+  if (words.length === 0) return [""]
+
+  const lines: string[] = []
+  let current = ""
+
+  const breakLongWord = (word: string) => {
+    let remaining = word
+    while (font.widthOfTextAtSize(remaining, size) > maxWidth && remaining.length > 1) {
+      let cut = remaining.length - 1
+      while (cut > 1 && font.widthOfTextAtSize(remaining.slice(0, cut), size) > maxWidth) cut--
+      lines.push(remaining.slice(0, cut))
+      remaining = remaining.slice(cut)
+    }
+    current = remaining
+  }
+
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word
+    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+      current = candidate
+    } else {
+      if (current) lines.push(current)
+      if (font.widthOfTextAtSize(word, size) <= maxWidth) {
+        current = word
+      } else {
+        breakLongWord(word)
+      }
+    }
+  }
+  if (current) lines.push(current)
+  return lines
+}
+
 export function drawTable(
   ctx: PdfContext,
   columns: TableColumn[],
@@ -111,15 +152,28 @@ export function drawTable(
   drawDivider(ctx)
 
   for (const row of rows) {
-    ensureSpace(ctx, 18)
+    const cellLines = row.map((cell, i) => wrapText(ctx.font, cell, 9, columns[i].width - CELL_GAP))
+    const lineCount = Math.max(1, ...cellLines.map((lines) => lines.length))
+    const rowHeight = lineCount * LINE_HEIGHT + 6
+
+    ensureSpace(ctx, rowHeight)
     x = MARGIN
-    row.forEach((cell, i) => {
+    cellLines.forEach((lines, i) => {
       const col = columns[i]
-      const textX = col.align === "right" ? x + col.width - ctx.font.widthOfTextAtSize(cell, 9) : x
-      ctx.page.drawText(cell, { x: textX, y: ctx.cursorY, size: 9, font: ctx.font, color: rgb(0.15, 0.15, 0.15) })
+      lines.forEach((line, lineIndex) => {
+        const lineWidth = ctx.font.widthOfTextAtSize(line, 9)
+        const textX = col.align === "right" ? x + col.width - lineWidth : x
+        ctx.page.drawText(line, {
+          x: textX,
+          y: ctx.cursorY - lineIndex * LINE_HEIGHT,
+          size: 9,
+          font: ctx.font,
+          color: rgb(0.15, 0.15, 0.15),
+        })
+      })
       x += col.width
     })
-    ctx.cursorY -= 18
+    ctx.cursorY -= rowHeight
   }
 }
 

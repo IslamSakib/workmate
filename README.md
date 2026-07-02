@@ -14,7 +14,7 @@ An agency & business operations platform for freelancers, consultancies, and sma
 - **Audit logs** — searchable, insert-only history of every create/update/delete across the app
 - **Business Insights** — top clients, most profitable projects, a 0–100 client health score, revenue forecast, burn rate, and retention rate, all derived from existing data (Manager+)
 - **Client portal** — a read-only login for clients scoped to exactly their own data (projects, hours, invoices + PDF download), plus project-level sign-off
-- **Dashboard & reports** — revenue/hours/profit KPIs, trend charts, exportable time-log and report PDFs
+- **Dashboard & reports** — revenue/hours/profit KPIs, trend charts, an exportable A4 report PDF
 - **Dark mode** — system-aware theme toggle (`next-themes`)
 - **Multi-currency** — per-client/project currency with locale-aware formatting
 - **Command palette** — `Ctrl/Cmd+K` global search and quick-create across clients, projects, tasks, invoices, and expenses
