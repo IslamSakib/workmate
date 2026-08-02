@@ -1,0 +1,21 @@
+name: Keep Supabase alive
+
+# Free-tier Supabase projects auto-pause after 7 days with zero API traffic.
+# This pings the project's REST endpoint every 2 days so it never goes idle
+# long enough to pause. The anon/publishable key is safe to embed here since
+# it's already shipped in the app's public JS bundle (RLS is the real
+# security boundary, not key secrecy).
+on:
+  schedule:
+    - cron: "17 4 */2 * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST endpoint
+        env:
+          SUPABASE_URL: https://fjginfxyalmigtritrgi.supabase.co
+          SUPABASE_ANON_KEY: sb_publishable_L3SToFaYrjwf4o1yBVrC4A_9cCKzuNO
+        run: curl -sf -H "apikey: $SUPABASE_ANON_KEY" "$SUPABASE_URL/rest/v1/" -o /dev/null

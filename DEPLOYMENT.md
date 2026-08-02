@@ -52,3 +52,7 @@ Without this, inviting a teammate still works — the app falls back to opening 
 ## 7. Redeploying after changes
 
 Each deploy is just: `npm run build` → re-upload the new `dist/` contents, overwriting the old ones. Edge Function changes need their own redeploy: `npx supabase functions deploy send-team-invite --project-ref <your-project-ref>`.
+
+## 8. Keeping a free-tier Supabase project from pausing
+
+Supabase's free plan auto-pauses a project after 7 days with zero API traffic; restoring it from the dashboard is free, just manual. `.github/workflows/keep-supabase-alive.yml` pings the project's REST endpoint every 2 days via a scheduled GitHub Action so it never goes idle long enough to pause — no Pro plan needed. It uses the anon/publishable key inline (safe to expose; it's already public in the app's JS bundle) and needs no secrets configured. If you rotate the Supabase project (new URL/key), update the `SUPABASE_URL`/`SUPABASE_ANON_KEY` values in that workflow file to match.
