@@ -18,4 +18,5 @@ jobs:
         env:
           SUPABASE_URL: https://fjginfxyalmigtritrgi.supabase.co
           SUPABASE_ANON_KEY: sb_publishable_L3SToFaYrjwf4o1yBVrC4A_9cCKzuNO
-        run: curl -sf -H "apikey: $SUPABASE_ANON_KEY" "$SUPABASE_URL/rest/v1/profiles?select=id&limit=1" -o /dev/null
+        run: |
+          curl -sf -H "apikey: $SUPABASE_ANON_KEY" "$SUPABASE_URL/rest/v1/profiles?select=id&limit=1" -o /dev/null
