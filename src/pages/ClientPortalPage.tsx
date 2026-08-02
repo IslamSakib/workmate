@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DataTable } from "@/components/shared/DataTable"
+import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import { formatCurrency } from "@/lib/currency"
 import { formatDuration } from "@/lib/duration"
 import { generateInvoicePdf } from "@/lib/pdf/invoicePdf"
@@ -135,6 +136,7 @@ export default function ClientPortalPage() {
     {
       id: "actions",
       header: "",
+      enableHiding: false,
       cell: ({ row }) => (
         <Button variant="ghost" size="sm" onClick={() => handleDownload(row.original)}>
           <Download className="size-4" />
@@ -151,7 +153,10 @@ export default function ClientPortalPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Your Portal</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Your Portal</h1>
+          <InfoTooltip text="This is your private space. You can see your projects, the hours worked, and your invoices here." />
+        </div>
         <p className="text-sm text-muted-foreground">Project status, tracked hours, and invoices.</p>
       </div>
 

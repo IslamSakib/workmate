@@ -38,6 +38,17 @@ This produces a static `dist/` folder (HTML/CSS/JS only — no Node server requi
 
 Enable Hostinger's free SSL (Let's Encrypt) for the domain — Supabase Auth requires HTTPS in production for secure cookie/session handling.
 
-## 6. Redeploying after changes
+## 6. Team invite emails (optional)
 
-Each deploy is just: `npm run build` → re-upload the new `dist/` contents, overwriting the old ones.
+Without this, inviting a teammate still works — the app falls back to opening your email app (or letting you copy the invite text) — but it won't send automatically. To enable real automated sending:
+
+1. Sign up at [resend.com](https://resend.com) (free tier is enough) and create an API key under **API Keys**.
+2. Install the Supabase CLI as a project dev dependency (Supabase blocks `npm install -g`): `npm install supabase --save-dev`, then run every command below as `npx supabase ...`.
+3. Log in: `npx supabase login` (opens a browser to authorize). If that command is run somewhere without an interactive browser, generate a token instead at [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) and use `npx supabase login --token <token>`.
+4. Set the secret (find the project ref in Project Settings → General): `npx supabase secrets set RESEND_API_KEY=re_your_key_here --project-ref <your-project-ref>`.
+5. Deploy the function: `npx supabase functions deploy send-team-invite --project-ref <your-project-ref>`.
+6. **Domain restriction**: without a verified domain, Resend only lets you send to the email address your Resend account itself was signed up with — every other recipient gets a 403, which the app silently falls back on. To invite arbitrary email addresses, verify a domain you actually own in Resend (**Domains** → add DNS records), then `npx supabase secrets set INVITE_FROM_EMAIL="WorkMate <invites@yourdomain.com>" --project-ref <your-project-ref>` and redeploy. A Hostinger *temporary* domain (`*.hostingersite.com`) can't be verified this way since you don't control its DNS — you need a real domain pointed at your hosting first.
+
+## 7. Redeploying after changes
+
+Each deploy is just: `npm run build` → re-upload the new `dist/` contents, overwriting the old ones. Edge Function changes need their own redeploy: `npx supabase functions deploy send-team-invite --project-ref <your-project-ref>`.

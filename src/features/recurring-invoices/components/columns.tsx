@@ -53,6 +53,7 @@ export function getRecurringInvoiceColumns({
     {
       id: "actions",
       header: "",
+      enableHiding: false,
       cell: ({ row }) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

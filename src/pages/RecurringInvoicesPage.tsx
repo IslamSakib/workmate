@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
+import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import {
   createRecurringInvoice,
   deleteRecurringInvoice,
@@ -87,7 +88,10 @@ export default function RecurringInvoicesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Recurring Invoices</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight">Recurring Invoices</h1>
+            <InfoTooltip text="Set this up once to send the same kind of invoice again and again, like every month. You won't have to make it by hand each time." />
+          </div>
           <p className="text-sm text-muted-foreground">
             Templates that auto-generate invoices on a schedule from billable hours.
           </p>

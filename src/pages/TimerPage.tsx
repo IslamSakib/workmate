@@ -11,11 +11,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
+import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import { useClientsList } from "@/hooks/useClientsList"
 import { useProjectsList } from "@/hooks/useProjectsList"
 import { useElapsedSeconds, formatElapsed } from "@/hooks/useElapsedSeconds"
 import { useTimerStore } from "@/store/timerStore"
 import { listRecentSessions, type RecentSession } from "@/features/timer/api"
+
+const STATUS_META = {
+  idle: { label: "Idle", dot: "bg-muted-foreground/40" },
+  running: { label: "Recording", dot: "bg-success animate-pulse" },
+  paused: { label: "Paused", dot: "bg-warning" },
+} as const
+
+/** Remounts the changed digit on every tick so it animates in, giving the counter a live "ticking" feel. */
+function AnimatedDigit({ char }: { char: string }) {
+  if (char === ":") {
+    return <span className="mx-0.5 text-muted-foreground/40 sm:mx-1">:</span>
+  }
+  return (
+    <span className="relative inline-block w-[0.62em] overflow-hidden text-center">
+      <span key={char} className="inline-block animate-in fade-in-0 slide-in-from-top-2 duration-300 ease-out">
+        {char}
+      </span>
+    </span>
+  )
+}
 
 export default function TimerPage() {
   const projects = useProjectsList()
@@ -69,44 +91,69 @@ export default function TimerPage() {
   const activeClient = clients.find((c) => c.id === (isIdle ? selectedClient : clientId))
   const taskLabel = isIdle ? sessionTaskName || "No task" : taskName || "No task"
   const metaLabel = [activeProject?.project_name, activeClient?.client_name].filter(Boolean).join(" · ")
+  const meta = STATUS_META[status]
 
   return (
     <div className="space-y-3">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Timer</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Timer</h1>
+          <InfoTooltip text="Type what you're working on, then click Start. We track your time down to the second and save it automatically." />
+        </div>
         <p className="text-sm text-muted-foreground">Track your work in real time, billed to the second.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_1fr]">
-        <Card>
-          <CardContent className="flex flex-col items-center gap-2 py-5 text-center">
-            <div className="font-mono text-4xl font-semibold tabular-nums tracking-tight sm:text-5xl">
-              {formatElapsed(elapsed)}
+        <Card className="relative overflow-hidden">
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-0 -z-10 opacity-0 transition-opacity duration-700",
+              status === "running" && "bg-gradient-to-b from-success/10 via-transparent to-transparent opacity-100",
+              status === "paused" && "bg-gradient-to-b from-warning/10 via-transparent to-transparent opacity-100"
+            )}
+          />
+          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+            <div className="flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground">
+              <span className={cn("size-2 rounded-full", meta.dot)} />
+              {meta.label}
             </div>
-            <p className="truncate text-sm font-medium">{taskLabel}</p>
+
+            <div
+              className="flex items-center justify-center font-mono text-6xl font-bold tabular-nums tracking-tight sm:text-7xl lg:text-8xl"
+              role="timer"
+              aria-live="off"
+            >
+              {formatElapsed(elapsed)
+                .split("")
+                .map((char, i) => (
+                  <AnimatedDigit key={i} char={char} />
+                ))}
+            </div>
+
+            <p className="truncate text-base font-medium">{taskLabel}</p>
             {metaLabel && <p className="truncate text-xs text-muted-foreground">{metaLabel}</p>}
 
-            <div className="mt-1 flex gap-2">
+            <div className="mt-3 flex gap-2">
               {isIdle && (
-                <Button onClick={handleStart} disabled={!sessionTaskName.trim()}>
+                <Button size="lg" className="rounded-full px-8" onClick={handleStart} disabled={!sessionTaskName.trim()}>
                   <Play className="size-4" />
                   Start
                 </Button>
               )}
               {status === "running" && (
-                <Button variant="outline" onClick={pause}>
+                <Button size="lg" variant="outline" className="rounded-full px-6" onClick={pause}>
                   <Pause className="size-4" />
                   Pause
                 </Button>
               )}
               {status === "paused" && (
-                <Button onClick={resume}>
+                <Button size="lg" className="rounded-full px-6" onClick={resume}>
                   <Play className="size-4" />
                   Resume
                 </Button>
               )}
               {!isIdle && (
-                <Button variant="destructive" onClick={handleStop}>
+                <Button size="lg" variant="destructive" className="rounded-full px-6" onClick={handleStop}>
                   <Square className="size-4" />
                   Stop
                 </Button>
@@ -169,7 +216,7 @@ export default function TimerPage() {
           <CardContent className="divide-y py-1">
             {sessions.length === 0 && <p className="py-3 text-sm text-muted-foreground">No sessions yet.</p>}
             {sessions.map((s) => (
-              <div key={s.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+              <div key={s.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                 <div className="min-w-0">
                   <p className="truncate font-medium">{s.task_name ?? "No task"}</p>
                   <p className="truncate text-xs text-muted-foreground">
@@ -177,7 +224,9 @@ export default function TimerPage() {
                     {s.client_name ? ` · ${s.client_name}` : ""}
                   </p>
                 </div>
-                <span className="shrink-0 font-mono text-xs">{formatElapsed(s.duration_seconds)}</span>
+                <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 font-mono text-xs font-medium">
+                  {formatElapsed(s.duration_seconds)}
+                </span>
               </div>
             ))}
           </CardContent>

@@ -58,7 +58,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSubmit }: InviteT
       open={open}
       onOpenChange={onOpenChange}
       title="Invite Team Member"
-      description="They'll need to sign up using this exact email to join your team automatically."
+      description="We'll email them an invite automatically. They must sign up using this exact email to join your team automatically."
     >
       <form onSubmit={handleSubmit(submit)} className="space-y-4">
         <div className="space-y-2">

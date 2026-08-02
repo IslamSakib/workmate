@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DatePicker } from "@/components/shared/DatePicker"
 import { DataTable } from "@/components/shared/DataTable"
+import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import { formatCurrency } from "@/lib/currency"
 import { formatDuration } from "@/lib/duration"
 import { buildChartSeries, getReportRows, summarize, toReportRows } from "@/features/reports/api"
@@ -123,7 +124,10 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
+            <InfoTooltip text="See how much you worked and earned over any time period. You can download this as a PDF too." />
+          </div>
           <p className="text-sm text-muted-foreground">{rangeLabel}</p>
         </div>
         <div className="flex gap-2">

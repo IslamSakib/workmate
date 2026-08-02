@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
+import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import { createProject, deleteProject, listProjects, updateProject } from "@/features/projects/api"
 import { ProjectFormDialog } from "@/features/projects/components/ProjectFormDialog"
 import { getProjectColumns } from "@/features/projects/components/columns"
@@ -87,7 +88,10 @@ export default function ProjectsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
+            <InfoTooltip text="A project is a job you do for a client. Add a project here, then log tasks and hours under it." />
+          </div>
           <p className="text-sm text-muted-foreground">Track project status and billing.</p>
         </div>
         {!readOnly && (

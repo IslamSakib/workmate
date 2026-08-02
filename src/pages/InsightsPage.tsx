@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
+import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import { formatCurrency } from "@/lib/currency"
 import { cn } from "@/lib/utils"
 import { getMonthlyTrend } from "@/features/dashboard/api"
@@ -131,7 +132,10 @@ export default function InsightsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Insights</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Insights</h1>
+          <InfoTooltip text="This page finds helpful patterns in your data, like your best clients and how fast you might grow. You don't need to enter anything extra." />
+        </div>
         <p className="text-sm text-muted-foreground">
           Business analytics derived from your existing data — no manual entry required.
         </p>

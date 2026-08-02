@@ -235,21 +235,17 @@ export async function getRetainerMetrics(): Promise<RetainerMetrics> {
 /**
  * Derives growth deltas from an already-fetched 12-month trend (see getMonthlyTrend) rather
  * than re-querying, since callers typically already hold this data for the trend charts.
- * yearRevenueGrowthPct compares the latest month against the oldest point in the rolling
- * 12-month window (~11 months prior) as an approximation of YoY growth.
  */
 export function getGrowthDeltas(trend: TrendPoint[]): GrowthDeltas {
-  if (trend.length < 2) return { monthRevenueGrowthPct: null, yearRevenueGrowthPct: null }
+  if (trend.length < 2) return { monthRevenueGrowthPct: null }
 
   const latest = trend[trend.length - 1]
   const previous = trend[trend.length - 2]
-  const oldest = trend[0]
 
   const pctChange = (from: number, to: number) => (from > 0 ? ((to - from) / from) * 100 : null)
 
   return {
     monthRevenueGrowthPct: pctChange(previous.revenue, latest.revenue),
-    yearRevenueGrowthPct: pctChange(oldest.revenue, latest.revenue),
   }
 }
 

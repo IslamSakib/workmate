@@ -84,6 +84,7 @@ export function getRetainerColumns({ onEdit, onDelete, usage }: ColumnActions): 
     {
       id: "actions",
       header: "",
+      enableHiding: false,
       cell: ({ row }) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

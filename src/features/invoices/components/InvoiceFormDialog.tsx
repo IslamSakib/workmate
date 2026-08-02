@@ -4,6 +4,7 @@ import { useForm, type Resolver } from "react-hook-form"
 import { toast } from "sonner"
 import { FormDialog } from "@/components/shared/FormDialog"
 import { DatePicker } from "@/components/shared/DatePicker"
+import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -282,7 +283,10 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
         </div>
 
         <div className="space-y-2">
-          <Label>Tasks in this billing period</Label>
+          <div className="flex items-center gap-2">
+            <Label>Tasks in this billing period</Label>
+            <InfoTooltip text="Only tasks marked billable and approved show up here. If a task is missing, check that it was submitted and approved first." />
+          </div>
           <div className="max-h-64 space-y-1 overflow-y-auto rounded-md border p-2">
             {loadingTasks && <p className="p-2 text-sm text-muted-foreground">Loading tasks...</p>}
             {!loadingTasks && tasks.length === 0 && (

@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -84,7 +85,10 @@ export default function SettingsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+          <InfoTooltip text="Change your name, password, and app preferences here, like your default currency." />
+        </div>
         <p className="text-sm text-muted-foreground">Manage your account and preferences.</p>
       </div>
 

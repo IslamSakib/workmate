@@ -35,3 +35,11 @@ export async function removeTeamMember(id: string): Promise<void> {
   const { error } = await supabase.from("team_members").delete().eq("id", id)
   if (error) throw error
 }
+
+/** Sends the invite email server-side via the `send-team-invite` Edge Function. Throws if it's not deployed/configured — callers should fall back to a manual send path. */
+export async function sendInviteEmail(email: string, role: TeamRole, signupUrl: string): Promise<void> {
+  const { error } = await supabase.functions.invoke("send-team-invite", {
+    body: { email, role, signupUrl },
+  })
+  if (error) throw error
+}

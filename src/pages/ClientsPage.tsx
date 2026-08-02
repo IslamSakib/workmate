@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
+import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import { createClient, deleteClient, inviteClientToPortal, listClients, updateClient } from "@/features/clients/api"
 import { ClientFormDialog } from "@/features/clients/components/ClientFormDialog"
 import { InviteClientPortalDialog } from "@/features/clients/components/InviteClientPortalDialog"
@@ -90,7 +91,10 @@ export default function ClientsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
+            <InfoTooltip text="A client is a person or company you work for. Add them here first. Then you can add projects and tasks for them." />
+          </div>
           <p className="text-sm text-muted-foreground">Manage your client relationships.</p>
         </div>
         {!readOnly && (

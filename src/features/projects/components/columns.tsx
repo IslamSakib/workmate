@@ -62,6 +62,7 @@ export function getProjectColumns({ onEdit, onDelete, readOnly }: ColumnActions)
           {
             id: "actions",
             header: "",
+            enableHiding: false,
             cell: ({ row }) => (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

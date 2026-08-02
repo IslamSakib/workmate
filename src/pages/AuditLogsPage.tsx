@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
+import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import {
   Select,
   SelectContent,
@@ -61,7 +62,10 @@ export default function AuditLogsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Audit Logs</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Audit Logs</h1>
+          <InfoTooltip text="This page shows every change made in your account. You can see who did what, and when. Nothing here can be edited or deleted." />
+        </div>
         <p className="text-sm text-muted-foreground">
           Searchable history of who changed what, when — immutable once recorded.
         </p>

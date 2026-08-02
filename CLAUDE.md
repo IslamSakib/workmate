@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-WorkMate is a freelancer productivity SaaS: time tracking, project/client/task management, reporting, and invoicing. React 19 + Vite + TypeScript SPA backed entirely by Supabase (Postgres + Auth + Storage) — there is no custom backend server.
+WorkMate is a freelancer productivity SaaS: time tracking, project/client/task management, reporting, and invoicing. React 19 + Vite + TypeScript SPA backed almost entirely by Supabase (Postgres + Auth + Storage) — there is no custom backend server, with one narrow exception: a single Supabase Edge Function that sends team-invite emails (see "Team invites" below).
 
 ## Commands
 
@@ -46,6 +46,12 @@ Permissions are enforced in two places that must be kept in sync:
 
 `created_by` (added in `0006`, distinct from `user_id`) tracks who actually performed an action versus which account owns the data — needed because Employee RLS policies on `tasks`/`time_entries` check `created_by = auth.uid()` to scope them to their own records.
 
+### Team invites — the one Edge Function in this app
+
+`inviteTeamMember` (`features/team/api.ts`) only ever writes the `team_members` row — actually notifying the invitee is a separate step, `sendInviteEmail`, which calls the `send-team-invite` Supabase Edge Function (`supabase/functions/send-team-invite/index.ts`) via `supabase.functions.invoke()`. The function verifies the caller's JWT, then sends through Resend using a `RESEND_API_KEY` secret that never reaches the browser. This is the one deliberate exception to "no backend" in this codebase — it exists because sending real email requires a secret that can't live client-side, unlike everything else in the app which talks to Supabase directly with RLS as the only guard.
+
+`TeamPage.tsx`'s `sendInvite()` treats the Edge Function as best-effort: if it's not deployed yet or errors (e.g. `RESEND_API_KEY` unset, or Resend's sender-domain restriction rejecting the recipient), it opens `InviteFallbackDialog` (`features/team/components/`) so the invite still goes out — copy the message to the clipboard or open it in a local email app. The same two actions (`Resend invite email` / `Copy invite message`) are also available per-row from the team table's row menu for any still-`invited` member. Don't assume the Edge Function is live — always keep this fallback path working when touching this flow.
+
 ### Timesheet approval
 
 `tasks.approval_status` gates invoice eligibility — `listBillableTasks` (`features/invoices/api.ts`) only picks up `approval_status = 'approved'` tasks, on top of the existing `billable`/`invoice_id is null` filters. Employees submit (`submitTask`), Manager+ approve/reject (`approveTask`/`rejectTask`, `features/tasks/api.ts`); a DB trigger (`prevent_self_approval`, `0008`) blocks an Employee from approving their own row even via a direct API call — this is enforced server-side, not just hidden in the UI.
@@ -64,13 +70,17 @@ Each domain lives under `src/features/<name>/` with a consistent shape:
 
 Pages in `src/pages/` are route-level and compose feature components; routing/layout/data-fetching glue lives there rather than in `features/`.
 
+Every page header follows the same pattern: an `<InfoTooltip>` (`src/components/shared/InfoTooltip.tsx`) next to the `<h1>` giving a one-sentence, plain-language explanation of the page for non-technical users — match this when adding a new page rather than leaving it unexplained or writing inline help text some other way.
+
+`DataTable` (`src/components/shared/DataTable.tsx`) auto-generates a "Columns" visibility toggle for any column that doesn't opt out — set `enableHiding: false` on columns that must always render (e.g. the row-actions column) when defining a new `columns.tsx`.
+
 ### Routing and auth gating
 
 `src/App.tsx` defines all routes. `ProtectedRoute`/`PublicOnlyRoute` (`src/components/layout/ProtectedRoute.tsx`) gate access based on `useAuthStore` (`src/store/authStore.ts`), which mirrors Supabase's session via `getSession()` + `onAuthStateChange` and exposes `initialized`/`user`/`session`/`accountId`/`role`. Authenticated pages render inside `AppShell` (`src/components/layout/AppShell.tsx`); unauthenticated routes render inside `AuthLayout`. Sidebar items are filtered by role (see "Multi-user accounts and permissions" above) but routes themselves are not separately role-gated — page-level access ultimately relies on RLS returning empty/erroring for data the role can't see.
 
 ### Audit logging
 
-`audit_logs` is populated entirely by a generic Postgres trigger (`log_audit_entry()`, `supabase/migrations/0005_audit_logs.sql`/`0006_team_members.sql`) attached to `clients`, `projects`, `tasks`, `time_entries`, `invoices`, `retainers`, `expenses` — there is no application code that writes audit rows, since every mutation goes straight from the browser to Supabase with no backend to intercept it. Each row snapshots `old_values`/`new_values` as full-row JSONB plus `user_id` (account owner) and `actor_id` (who actually did it, once team members exist). Rows are insert-only — no update/delete RLS policy exists for any role, including the Owner. `features/audit-logs/api.ts` only reads; the table/column-name strings it filters on must match real Postgres table names since the trigger uses `tg_table_name` directly.
+`audit_logs` is populated entirely by a generic Postgres trigger (`log_audit_entry()`, `supabase/migrations/0005_audit_logs.sql`/`0006_team_members.sql`) attached to `clients`, `projects`, `tasks`, `time_entries`, `invoices`, `retainers`, `expenses` — there is no application code that writes audit rows, since every mutation goes straight from the browser to Supabase (the `send-team-invite` Edge Function doesn't touch these tables, so it has no bearing here). Each row snapshots `old_values`/`new_values` as full-row JSONB plus `user_id` (account owner) and `actor_id` (who actually did it, once team members exist). Rows are insert-only — no update/delete RLS policy exists for any role, including the Owner. `features/audit-logs/api.ts` only reads; the table/column-name strings it filters on must match real Postgres table names since the trigger uses `tg_table_name` directly.
 
 ### Command palette
 

@@ -34,6 +34,7 @@ export function getClientColumns({
           {
             id: "actions",
             header: "",
+            enableHiding: false,
             cell: ({ row }) => (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
+import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import {
   getDashboardStats,
   getGrowthDeltas,
@@ -19,7 +20,6 @@ import { useAuthStore } from "@/store/authStore"
 import { StatsCards } from "@/features/dashboard/components/StatsCards"
 import { RevenueTrendChart } from "@/features/dashboard/components/RevenueTrendChart"
 import { HoursTrendChart } from "@/features/dashboard/components/HoursTrendChart"
-import { MonthlyPerformanceChart } from "@/features/dashboard/components/MonthlyPerformanceChart"
 import { ProfitChart } from "@/features/dashboard/components/ProfitChart"
 import { RecentTasks } from "@/features/dashboard/components/RecentTasks"
 import { RecentActivity } from "@/features/dashboard/components/RecentActivity"
@@ -99,7 +99,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 16 }).map((_, i) => (
+          {Array.from({ length: canApprove ? 7 : 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
@@ -113,7 +113,10 @@ export default function DashboardPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <InfoTooltip text="This is your home page. It shows your hours, money earned, and other key numbers at a glance." />
+        </div>
         <p className="text-sm text-muted-foreground">Your freelance business at a glance.</p>
       </div>
 
@@ -123,7 +126,6 @@ export default function DashboardPage() {
         stats={stats}
         outstanding={outstanding}
         growth={growth}
-        retainers={retainers}
         profit={profit}
         pendingApprovals={pendingApprovals ?? undefined}
       />
@@ -133,7 +135,6 @@ export default function DashboardPage() {
         <HoursTrendChart data={trend} />
         <ProfitChart data={profitTrend} />
       </div>
-      <MonthlyPerformanceChart data={trend} />
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <RecentTasks tasks={recentTasks} />

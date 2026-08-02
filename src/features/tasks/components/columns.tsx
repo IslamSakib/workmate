@@ -114,6 +114,7 @@ export function getTaskColumns({
     {
       id: "actions",
       header: "",
+      enableHiding: false,
       cell: ({ row }) => {
         const task = row.original
         const isOwnDraftOrRejected =

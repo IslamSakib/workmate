@@ -1,6 +1,6 @@
 import { format } from "date-fns"
 import type { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Trash2 } from "lucide-react"
+import { Copy, Mail, MoreHorizontal, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,10 +27,18 @@ const ROLE_OPTIONS: { value: TeamRole; label: string }[] = [
 interface ColumnActions {
   onRoleChange: (member: TeamMember, role: TeamRole) => void
   onRemove: (member: TeamMember) => void
+  onResendInvite: (member: TeamMember) => void
+  onCopyInvite: (member: TeamMember) => void
   readOnly?: boolean
 }
 
-export function getTeamColumns({ onRoleChange, onRemove, readOnly }: ColumnActions): ColumnDef<TeamMember, unknown>[] {
+export function getTeamColumns({
+  onRoleChange,
+  onRemove,
+  onResendInvite,
+  onCopyInvite,
+  readOnly,
+}: ColumnActions): ColumnDef<TeamMember, unknown>[] {
   return [
     {
       id: "email",
@@ -80,6 +88,7 @@ export function getTeamColumns({ onRoleChange, onRemove, readOnly }: ColumnActio
           {
             id: "actions",
             header: "",
+            enableHiding: false,
             cell: ({ row }) => (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -88,6 +97,18 @@ export function getTeamColumns({ onRoleChange, onRemove, readOnly }: ColumnActio
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {row.original.status === "invited" && (
+                    <>
+                      <DropdownMenuItem onClick={() => onResendInvite(row.original)}>
+                        <Mail className="size-4" />
+                        Resend invite email
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onCopyInvite(row.original)}>
+                        <Copy className="size-4" />
+                        Copy invite message
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuItem variant="destructive" onClick={() => onRemove(row.original)}>
                     <Trash2 className="size-4" />
                     Remove

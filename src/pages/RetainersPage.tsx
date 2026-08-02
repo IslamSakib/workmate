@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
+import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import {
   createRetainer,
   deleteRetainer,
@@ -92,7 +93,10 @@ export default function RetainersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Retainers</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight">Retainers</h1>
+            <InfoTooltip text="A retainer is a fixed monthly fee a client pays for a set number of hours. This page tracks how many hours they've used." />
+          </div>
           <p className="text-sm text-muted-foreground">Manage recurring monthly client retainers.</p>
         </div>
         <Button

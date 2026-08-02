@@ -69,6 +69,7 @@ export function getInvoiceColumns({
     {
       id: "actions",
       header: "",
+      enableHiding: false,
       cell: ({ row }) => {
         const invoice = row.original
         const canRecordPayment = invoice.status === "sent" || invoice.status === "overdue" || invoice.status === "partial"

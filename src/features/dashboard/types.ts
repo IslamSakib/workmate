@@ -32,8 +32,6 @@ export interface UpcomingDeadline {
 export interface GrowthDeltas {
   /** % change in revenue, latest tracked month vs the prior month. */
   monthRevenueGrowthPct: number | null
-  /** % change in revenue, latest tracked month vs ~11 months prior (approximates YoY using the rolling 12-month trend window). */
-  yearRevenueGrowthPct: number | null
 }
 
 export interface RetainerUsageRow {

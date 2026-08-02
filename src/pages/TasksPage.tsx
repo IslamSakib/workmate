@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
+import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import { RejectTaskDialog } from "@/features/tasks/components/RejectTaskDialog"
 import {
   approveTask,
@@ -158,7 +159,10 @@ export default function TasksPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Tasks</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight">Tasks</h1>
+            <InfoTooltip text="A task is one piece of work, like 'Design homepage.' Log your time here. Employees submit tasks, and a Manager must approve them before they can be billed." />
+          </div>
           <p className="text-sm text-muted-foreground">Log and manage time entries.</p>
         </div>
         <Button
