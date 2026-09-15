@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DatePicker } from "@/components/shared/DatePicker"
 import { DataTable } from "@/components/shared/DataTable"
 import { InfoTooltip } from "@/components/shared/InfoTooltip"
+import { ExportCsvButton } from "@/components/shared/ExportCsvButton"
 import { currenciesIn, formatCurrency, formatCurrencyAmounts } from "@/lib/currency"
 import type { CurrencyCode } from "@/types/database"
 import { formatDuration } from "@/lib/duration"
@@ -134,6 +135,18 @@ export default function ReportsPage() {
           <p className="text-sm text-muted-foreground">{rangeLabel}</p>
         </div>
         <div className="flex gap-2">
+          <ExportCsvButton
+            filename="report.csv"
+            rows={rows}
+            columns={[
+              { label: "Date", value: (r) => r.date },
+              { label: "Task", value: (r) => r.task_name },
+              { label: "Project", value: (r) => r.project_name },
+              { label: "Client", value: (r) => r.client_name },
+              { label: "Duration", value: (r) => formatDuration(r.duration_seconds) },
+              { label: "Billable", value: (r) => r.billable },
+            ]}
+          />
           <Button onClick={handleExportReport}>
             <FileText className="size-4" />
             Report PDF

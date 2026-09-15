@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { InfoTooltip } from "@/components/shared/InfoTooltip"
+import { ExportCsvButton } from "@/components/shared/ExportCsvButton"
 import {
   createInvoice,
   deleteInvoice,
@@ -180,16 +181,33 @@ export default function InvoicesPage() {
           </div>
           <p className="text-sm text-muted-foreground">Bill clients and track payment status.</p>
         </div>
-        <Button
-          onClick={() => {
-            setEditing(null)
-            setEditingItems([])
-            setFormOpen(true)
-          }}
-        >
-          <Plus className="size-4" />
-          New Invoice
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportCsvButton
+            filename="invoices.csv"
+            rows={invoices}
+            columns={[
+              { label: "Invoice #", value: (i) => i.invoice_number },
+              { label: "Client", value: (i) => i.clients?.client_name },
+              { label: "Project", value: (i) => i.projects?.project_name },
+              { label: "Status", value: (i) => i.status },
+              { label: "Issue date", value: (i) => i.issue_date },
+              { label: "Due date", value: (i) => i.due_date },
+              { label: "Total", value: (i) => i.total },
+              { label: "Amount paid", value: (i) => i.amount_paid },
+              { label: "Currency", value: (i) => i.currency },
+            ]}
+          />
+          <Button
+            onClick={() => {
+              setEditing(null)
+              setEditingItems([])
+              setFormOpen(true)
+            }}
+          >
+            <Plus className="size-4" />
+            New Invoice
+          </Button>
+        </div>
       </div>
 
       {loading ? (

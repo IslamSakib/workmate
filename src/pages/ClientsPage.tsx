@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { InfoTooltip } from "@/components/shared/InfoTooltip"
+import { ExportCsvButton } from "@/components/shared/ExportCsvButton"
 import { createClient, deleteClient, listClients, updateClient } from "@/features/clients/api"
 import { ClientFormDialog } from "@/features/clients/components/ClientFormDialog"
 import { getClientColumns } from "@/features/clients/components/columns"
@@ -89,15 +90,30 @@ export default function ClientsPage() {
           </div>
           <p className="text-sm text-muted-foreground">Manage your client relationships.</p>
         </div>
-        <Button
-          onClick={() => {
-            setEditing(null)
-            setFormOpen(true)
-          }}
-        >
-          <Plus className="size-4" />
-          New Client
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportCsvButton
+            filename="clients.csv"
+            rows={clients}
+            columns={[
+              { label: "Client name", value: (c) => c.client_name },
+              { label: "Company", value: (c) => c.company_name },
+              { label: "Email", value: (c) => c.email },
+              { label: "Phone", value: (c) => c.phone },
+              { label: "Currency", value: (c) => c.currency },
+              { label: "Country", value: (c) => c.country },
+              { label: "Created", value: (c) => c.created_at.slice(0, 10) },
+            ]}
+          />
+          <Button
+            onClick={() => {
+              setEditing(null)
+              setFormOpen(true)
+            }}
+          >
+            <Plus className="size-4" />
+            New Client
+          </Button>
+        </div>
       </div>
 
       {loading ? (

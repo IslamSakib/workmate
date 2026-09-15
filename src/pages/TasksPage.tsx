@@ -7,6 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { InfoTooltip } from "@/components/shared/InfoTooltip"
+import { ExportCsvButton } from "@/components/shared/ExportCsvButton"
+import { formatDuration } from "@/lib/duration"
 import { createTask, deleteTask, duplicateTask, listTasks, updateTask } from "@/features/tasks/api"
 import { TaskFormDialog } from "@/features/tasks/components/TaskFormDialog"
 import { getTaskColumns } from "@/features/tasks/components/columns"
@@ -114,15 +116,29 @@ export default function TasksPage() {
           </div>
           <p className="text-sm text-muted-foreground">Log and manage time entries.</p>
         </div>
-        <Button
-          onClick={() => {
-            setEditing(null)
-            setFormOpen(true)
-          }}
-        >
-          <Plus className="size-4" />
-          New Task
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportCsvButton
+            filename="tasks.csv"
+            rows={tasks}
+            columns={[
+              { label: "Date", value: (t) => t.date },
+              { label: "Task", value: (t) => t.task_name },
+              { label: "Project", value: (t) => t.projects?.project_name },
+              { label: "Client", value: (t) => t.clients?.client_name },
+              { label: "Duration", value: (t) => formatDuration(t.duration_seconds) },
+              { label: "Billable", value: (t) => t.billable },
+            ]}
+          />
+          <Button
+            onClick={() => {
+              setEditing(null)
+              setFormOpen(true)
+            }}
+          >
+            <Plus className="size-4" />
+            New Task
+          </Button>
+        </div>
       </div>
 
       {loading ? (

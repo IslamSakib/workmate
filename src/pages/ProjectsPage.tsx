@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { InfoTooltip } from "@/components/shared/InfoTooltip"
+import { ExportCsvButton } from "@/components/shared/ExportCsvButton"
 import { createProject, deleteProject, listProjects, updateProject } from "@/features/projects/api"
 import { ProjectFormDialog } from "@/features/projects/components/ProjectFormDialog"
 import { getProjectColumns } from "@/features/projects/components/columns"
@@ -89,15 +90,31 @@ export default function ProjectsPage() {
           </div>
           <p className="text-sm text-muted-foreground">Track project status and billing.</p>
         </div>
-        <Button
-          onClick={() => {
-            setEditing(null)
-            setFormOpen(true)
-          }}
-        >
-          <Plus className="size-4" />
-          New Project
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportCsvButton
+            filename="projects.csv"
+            rows={projects}
+            columns={[
+              { label: "Project name", value: (p) => p.project_name },
+              { label: "Client", value: (p) => p.clients?.client_name },
+              { label: "Status", value: (p) => p.status },
+              { label: "Hourly rate", value: (p) => p.hourly_rate },
+              { label: "Fixed price", value: (p) => p.fixed_price },
+              { label: "Currency", value: (p) => p.currency },
+              { label: "Start date", value: (p) => p.start_date },
+              { label: "Due date", value: (p) => p.due_date },
+            ]}
+          />
+          <Button
+            onClick={() => {
+              setEditing(null)
+              setFormOpen(true)
+            }}
+          >
+            <Plus className="size-4" />
+            New Project
+          </Button>
+        </div>
       </div>
 
       {loading ? (
