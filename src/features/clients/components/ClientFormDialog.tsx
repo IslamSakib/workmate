@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CURRENCIES } from "@/lib/currency"
+import { AttachmentsPanel } from "@/features/attachments/components/AttachmentsPanel"
 import { clientSchema, type ClientInput } from "../schema"
 import type { Client } from "../types"
 
@@ -118,6 +119,7 @@ export function ClientFormDialog({ open, onOpenChange, client, onSubmit }: Clien
           <Label htmlFor="notes">Notes</Label>
           <Textarea id="notes" rows={3} {...register("notes")} />
         </div>
+        {client && <AttachmentsPanel ownerType="client" ownerId={client.id} />}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel

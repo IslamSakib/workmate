@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select"
 import { CURRENCIES, formatCurrency } from "@/lib/currency"
 import { formatDuration } from "@/lib/duration"
+import { AttachmentsPanel } from "@/features/attachments/components/AttachmentsPanel"
 import { useClientsList } from "@/hooks/useClientsList"
 import { useProjectsList } from "@/hooks/useProjectsList"
 import { listBillableTasks } from "../api"
@@ -331,6 +332,8 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
             <span>{formatCurrency(total, currency)}</span>
           </div>
         </div>
+
+        {invoice && <AttachmentsPanel ownerType="invoice" ownerId={invoice.id} />}
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

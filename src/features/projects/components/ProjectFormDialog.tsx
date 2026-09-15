@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CURRENCIES } from "@/lib/currency"
+import { AttachmentsPanel } from "@/features/attachments/components/AttachmentsPanel"
 import { useClientsList } from "@/hooks/useClientsList"
 import { projectSchema, type ProjectInput } from "../schema"
 import type { Project } from "../types"
@@ -169,6 +170,8 @@ export function ProjectFormDialog({ open, onOpenChange, project, onSubmit }: Pro
           <Label htmlFor="notes">Notes</Label>
           <Textarea id="notes" rows={3} {...register("notes")} />
         </div>
+
+        {project && <AttachmentsPanel ownerType="project" ownerId={project.id} />}
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
