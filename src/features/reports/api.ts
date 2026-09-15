@@ -1,5 +1,7 @@
 import { differenceInCalendarDays, eachDayOfInterval, eachMonthOfInterval, format } from "date-fns"
 import { supabase } from "@/lib/supabaseClient"
+import { listFixedFeeRevenue } from "@/features/invoices/api"
+import type { FixedFeeRevenueRow } from "@/features/invoices/types"
 import type { ReportChartPoint, ReportRow, ReportSummary } from "./types"
 
 interface RawTaskRow {
@@ -28,6 +30,17 @@ export async function getReportRows(from: Date, to: Date): Promise<RawTaskRow[]>
   return (data ?? []) as unknown as RawTaskRow[]
 }
 
+/**
+ * A fixed-price project's tasks always price at $0 (see summarize/
+ * buildChartSeries) — its revenue is recognized instead when actually
+ * invoiced, via the flat-fee item's amount on the invoice's issue_date.
+ */
+export async function getReportFixedFeeRevenue(from: Date, to: Date): Promise<FixedFeeRevenueRow[]> {
+  const rows = await listFixedFeeRevenue(format(from, "yyyy-MM-dd"))
+  const toStr = format(to, "yyyy-MM-dd")
+  return rows.filter((r) => r.issue_date <= toStr)
+}
+
 export function toReportRows(raw: RawTaskRow[]): ReportRow[] {
   return raw.map((t) => ({
     id: t.id,
@@ -40,18 +53,24 @@ export function toReportRows(raw: RawTaskRow[]): ReportRow[] {
   }))
 }
 
-export function summarize(raw: RawTaskRow[]): ReportSummary {
+export function summarize(raw: RawTaskRow[], flatFees: FixedFeeRevenueRow[] = []): ReportSummary {
   const totalSeconds = raw.reduce((acc, t) => acc + t.duration_seconds, 0)
-  const totalRevenue = raw.reduce(
+  const taskRevenue = raw.reduce(
     (acc, t) => acc + (t.billable ? (t.duration_seconds / 3600) * (t.projects?.hourly_rate ?? 0) : 0),
     0,
   )
+  const flatFeeRevenue = flatFees.reduce((acc, f) => acc + f.amount, 0)
   const projectCount = new Set(raw.map((t) => t.project_id).filter(Boolean)).size
   const clientCount = new Set(raw.map((t) => t.client_id).filter(Boolean)).size
-  return { totalSeconds, totalRevenue, projectCount, clientCount }
+  return { totalSeconds, totalRevenue: taskRevenue + flatFeeRevenue, projectCount, clientCount }
 }
 
-export function buildChartSeries(raw: RawTaskRow[], from: Date, to: Date): ReportChartPoint[] {
+export function buildChartSeries(
+  raw: RawTaskRow[],
+  from: Date,
+  to: Date,
+  flatFees: FixedFeeRevenueRow[] = [],
+): ReportChartPoint[] {
   const spanDays = differenceInCalendarDays(to, from)
 
   if (spanDays > 60) {
@@ -60,11 +79,18 @@ export function buildChartSeries(raw: RawTaskRow[], from: Date, to: Date): Repor
       const monthKey = format(month, "yyyy-MM")
       const monthTasks = raw.filter((t) => t.date.startsWith(monthKey))
       const hours = monthTasks.reduce((acc, t) => acc + t.duration_seconds / 3600, 0)
-      const revenue = monthTasks.reduce(
+      const taskRevenue = monthTasks.reduce(
         (acc, t) => acc + (t.billable ? (t.duration_seconds / 3600) * (t.projects?.hourly_rate ?? 0) : 0),
         0,
       )
-      return { label: format(month, "MMM"), hours: Math.round(hours * 10) / 10, revenue: Math.round(revenue) }
+      const flatFeeRevenue = flatFees
+        .filter((f) => f.issue_date.startsWith(monthKey))
+        .reduce((acc, f) => acc + f.amount, 0)
+      return {
+        label: format(month, "MMM"),
+        hours: Math.round(hours * 10) / 10,
+        revenue: Math.round(taskRevenue + flatFeeRevenue),
+      }
     })
   }
 
@@ -73,10 +99,15 @@ export function buildChartSeries(raw: RawTaskRow[], from: Date, to: Date): Repor
     const dayKey = format(day, "yyyy-MM-dd")
     const dayTasks = raw.filter((t) => t.date === dayKey)
     const hours = dayTasks.reduce((acc, t) => acc + t.duration_seconds / 3600, 0)
-    const revenue = dayTasks.reduce(
+    const taskRevenue = dayTasks.reduce(
       (acc, t) => acc + (t.billable ? (t.duration_seconds / 3600) * (t.projects?.hourly_rate ?? 0) : 0),
       0,
     )
-    return { label: format(day, "MMM d"), hours: Math.round(hours * 10) / 10, revenue: Math.round(revenue) }
+    const flatFeeRevenue = flatFees.filter((f) => f.issue_date === dayKey).reduce((acc, f) => acc + f.amount, 0)
+    return {
+      label: format(day, "MMM d"),
+      hours: Math.round(hours * 10) / 10,
+      revenue: Math.round(taskRevenue + flatFeeRevenue),
+    }
   })
 }

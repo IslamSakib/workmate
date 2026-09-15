@@ -12,12 +12,8 @@ import { ExpenseFormDialog } from "@/features/expenses/components/ExpenseFormDia
 import { getExpenseColumns } from "@/features/expenses/components/columns"
 import type { ExpenseWithRefs } from "@/features/expenses/types"
 import type { ExpenseInput } from "@/features/expenses/schema"
-import { hasMinRole } from "@/lib/permissions"
-import { useAuthStore } from "@/store/authStore"
 
 export default function ExpensesPage() {
-  const role = useAuthStore((s) => s.role)
-  const readOnly = !hasMinRole(role, "admin")
   const [expenses, setExpenses] = useState<ExpenseWithRefs[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
@@ -81,7 +77,6 @@ export default function ExpensesPage() {
       setFormOpen(true)
     },
     onDelete: (expense) => setDeleting(expense),
-    readOnly,
   })
 
   return (
@@ -94,17 +89,15 @@ export default function ExpensesPage() {
           </div>
           <p className="text-sm text-muted-foreground">Track business costs against revenue and profit.</p>
         </div>
-        {!readOnly && (
-          <Button
-            onClick={() => {
-              setEditing(null)
-              setFormOpen(true)
-            }}
-          >
-            <Plus className="size-4" />
-            New Expense
-          </Button>
-        )}
+        <Button
+          onClick={() => {
+            setEditing(null)
+            setFormOpen(true)
+          }}
+        >
+          <Plus className="size-4" />
+          New Expense
+        </Button>
       </div>
 
       {loading ? (

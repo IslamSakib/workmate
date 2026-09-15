@@ -23,7 +23,7 @@ import { useClientsList } from "@/hooks/useClientsList"
 import { useProjectsList } from "@/hooks/useProjectsList"
 import { listBillableTasks } from "../api"
 import { invoiceSchema, type InvoiceInput } from "../schema"
-import type { BillableTask, Invoice, InvoiceItem } from "../types"
+import { FLAT_FEE_ITEM_ID, type BillableTask, type Invoice, type InvoiceItem } from "../types"
 
 const STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
@@ -98,7 +98,9 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
             },
       )
       setTasks([])
-      setCheckedIds(new Set((items ?? []).filter((i) => i.task_id).map((i) => i.task_id as string)))
+      const initialChecked = new Set((items ?? []).filter((i) => i.task_id).map((i) => i.task_id as string))
+      if ((items ?? []).some((i) => !i.task_id)) initialChecked.add(FLAT_FEE_ITEM_ID)
+      setCheckedIds(initialChecked)
     }
   }, [open, invoice, items, reset])
 
@@ -285,7 +287,7 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Label>Tasks in this billing period</Label>
-            <InfoTooltip text="Only tasks marked billable and approved show up here. If a task is missing, check that it was submitted and approved first." />
+            <InfoTooltip text="Only tasks marked billable show up here. A fixed-price project also offers a one-time flat fee for its full price instead of per-task amounts." />
           </div>
           <div className="max-h-64 space-y-1 overflow-y-auto rounded-md border p-2">
             {loadingTasks && <p className="p-2 text-sm text-muted-foreground">Loading tasks...</p>}
@@ -302,8 +304,9 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{t.task_name}</span>
                     <span className="block text-xs text-muted-foreground">
-                      {t.date} · {formatDuration(t.duration_seconds)}
-                      {t.project_name ? ` · ${t.project_name}` : ""}
+                      {t.isFlatFee
+                        ? "One-time flat fee"
+                        : `${t.date} · ${formatDuration(t.duration_seconds)}${t.project_name ? ` · ${t.project_name}` : ""}`}
                     </span>
                   </span>
                 </span>

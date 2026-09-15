@@ -3,7 +3,7 @@
 ## 1. Supabase project setup
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Open the SQL editor and run every file in `supabase/migrations/` **in numeric order**, `0001` through the highest-numbered file. `0001_init.sql` creates the base tables/enums/RLS/triggers and the `attachments` storage bucket; every later file is an additive, idempotent upgrade (safe to run even if some already partially applied) adding one feature each — per-second billing, retainers, expenses, audit logs, multi-user team accounts + permissions, timesheet approval, advanced invoicing, and the client portal. For a brand-new project, running all of them once gets you the current schema; for an existing project, just run whichever ones you haven't applied yet.
+2. Open the SQL editor and run every file in `supabase/migrations/` **in numeric order**, `0001` through the highest-numbered file. `0001_init.sql` creates the base tables/enums/RLS/triggers and the `attachments` storage bucket; every later file is an additive, idempotent upgrade (safe to run even if some already partially applied) adding one feature each — per-second billing, retainers, expenses, advanced invoicing, and (in `0011`) reverting the app back down to single-user RLS. For a brand-new project, running all of them once gets you the current schema; for an existing project, just run whichever ones you haven't applied yet.
 3. In **Project Settings → API**, copy the **Project URL** and **anon public key**.
 4. In **Authentication → URL Configuration**, set the Site URL to your production domain and add `https://yourdomain.com/reset-password` as a redirect URL (needed for the forgot-password flow).
 
@@ -38,21 +38,10 @@ This produces a static `dist/` folder (HTML/CSS/JS only — no Node server requi
 
 Enable Hostinger's free SSL (Let's Encrypt) for the domain — Supabase Auth requires HTTPS in production for secure cookie/session handling.
 
-## 6. Team invite emails (optional)
+## 6. Redeploying after changes
 
-Without this, inviting a teammate still works — the app falls back to opening your email app (or letting you copy the invite text) — but it won't send automatically. To enable real automated sending:
+Each deploy is just: `npm run build` → re-upload the new `dist/` contents, overwriting the old ones.
 
-1. Sign up at [resend.com](https://resend.com) (free tier is enough) and create an API key under **API Keys**.
-2. Install the Supabase CLI as a project dev dependency (Supabase blocks `npm install -g`): `npm install supabase --save-dev`, then run every command below as `npx supabase ...`.
-3. Log in: `npx supabase login` (opens a browser to authorize). If that command is run somewhere without an interactive browser, generate a token instead at [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) and use `npx supabase login --token <token>`.
-4. Set the secret (find the project ref in Project Settings → General): `npx supabase secrets set RESEND_API_KEY=re_your_key_here --project-ref <your-project-ref>`.
-5. Deploy the function: `npx supabase functions deploy send-team-invite --project-ref <your-project-ref>`.
-6. **Domain restriction**: without a verified domain, Resend only lets you send to the email address your Resend account itself was signed up with — every other recipient gets a 403, which the app silently falls back on. To invite arbitrary email addresses, verify a domain you actually own in Resend (**Domains** → add DNS records), then `npx supabase secrets set INVITE_FROM_EMAIL="WorkMate <invites@yourdomain.com>" --project-ref <your-project-ref>` and redeploy. A Hostinger *temporary* domain (`*.hostingersite.com`) can't be verified this way since you don't control its DNS — you need a real domain pointed at your hosting first.
-
-## 7. Redeploying after changes
-
-Each deploy is just: `npm run build` → re-upload the new `dist/` contents, overwriting the old ones. Edge Function changes need their own redeploy: `npx supabase functions deploy send-team-invite --project-ref <your-project-ref>`.
-
-## 8. Keeping a free-tier Supabase project from pausing
+## 7. Keeping a free-tier Supabase project from pausing
 
 Supabase's free plan auto-pauses a project after 7 days with zero API traffic; restoring it from the dashboard is free, just manual. `.github/workflows/keep-supabase-alive.yml` pings the project's REST endpoint every 2 days via a scheduled GitHub Action so it never goes idle long enough to pause — no Pro plan needed. It uses the anon/publishable key inline (safe to expose; it's already public in the app's JS bundle) and needs no secrets configured. If you rotate the Supabase project (new URL/key), update the `SUPABASE_URL`/`SUPABASE_ANON_KEY` values in that workflow file to match.

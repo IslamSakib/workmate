@@ -14,7 +14,6 @@ import type { ProjectWithClient } from "../types"
 interface ColumnActions {
   onEdit: (project: ProjectWithClient) => void
   onDelete: (project: ProjectWithClient) => void
-  readOnly?: boolean
 }
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
@@ -24,7 +23,7 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "dest
   cancelled: "destructive",
 }
 
-export function getProjectColumns({ onEdit, onDelete, readOnly }: ColumnActions): ColumnDef<ProjectWithClient, unknown>[] {
+export function getProjectColumns({ onEdit, onDelete }: ColumnActions): ColumnDef<ProjectWithClient, unknown>[] {
   return [
     { accessorKey: "project_name", header: "Project" },
     {
@@ -56,33 +55,29 @@ export function getProjectColumns({ onEdit, onDelete, readOnly }: ColumnActions)
       header: "Due",
       cell: ({ row }) => row.original.due_date || "—",
     },
-    ...(readOnly
-      ? []
-      : [
-          {
-            id: "actions",
-            header: "",
-            enableHiding: false,
-            cell: ({ row }) => (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="size-8">
-                    <MoreHorizontal className="size-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onEdit(row.original)}>
-                    <Pencil className="size-4" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem variant="destructive" onClick={() => onDelete(row.original)}>
-                    <Trash2 className="size-4" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ),
-          } satisfies ColumnDef<ProjectWithClient, unknown>,
-        ]),
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="size-8">
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onEdit(row.original)}>
+              <Pencil className="size-4" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem variant="destructive" onClick={() => onDelete(row.original)}>
+              <Trash2 className="size-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
   ]
 }

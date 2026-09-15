@@ -2,8 +2,7 @@ import { useEffect } from "react"
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { Toaster } from "@/components/ui/sonner"
 import { AppShell } from "@/components/layout/AppShell"
-import { PortalShell } from "@/components/layout/PortalShell"
-import { ProtectedRoute, PortalRoute, PublicOnlyRoute } from "@/components/layout/ProtectedRoute"
+import { ProtectedRoute, PublicOnlyRoute } from "@/components/layout/ProtectedRoute"
 import { useAuthStore } from "@/store/authStore"
 
 import LoginPage from "@/pages/LoginPage"
@@ -21,10 +20,7 @@ import InvoicesPage from "@/pages/InvoicesPage"
 import RetainersPage from "@/pages/RetainersPage"
 import RecurringInvoicesPage from "@/pages/RecurringInvoicesPage"
 import ExpensesPage from "@/pages/ExpensesPage"
-import AuditLogsPage from "@/pages/AuditLogsPage"
-import TeamPage from "@/pages/TeamPage"
 import SettingsPage from "@/pages/SettingsPage"
-import ClientPortalPage from "@/pages/ClientPortalPage"
 
 function App() {
   const initialize = useAuthStore((s) => s.initialize)
@@ -59,14 +55,6 @@ function App() {
             <Route path="/retainers" element={<RetainersPage />} />
             <Route path="/expenses" element={<ExpensesPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/audit-logs" element={<AuditLogsPage />} />
-            <Route path="/team" element={<TeamPage />} />
-          </Route>
-        </Route>
-
-        <Route element={<PortalRoute />}>
-          <Route element={<PortalShell />}>
-            <Route path="/portal" element={<ClientPortalPage />} />
           </Route>
         </Route>
 

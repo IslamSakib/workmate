@@ -7,34 +7,19 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { InfoTooltip } from "@/components/shared/InfoTooltip"
-import { RejectTaskDialog } from "@/features/tasks/components/RejectTaskDialog"
-import {
-  approveTask,
-  createTask,
-  deleteTask,
-  duplicateTask,
-  listTasks,
-  rejectTask,
-  submitTask,
-  updateTask,
-} from "@/features/tasks/api"
+import { createTask, deleteTask, duplicateTask, listTasks, updateTask } from "@/features/tasks/api"
 import { TaskFormDialog } from "@/features/tasks/components/TaskFormDialog"
 import { getTaskColumns } from "@/features/tasks/components/columns"
 import type { TaskWithRelations } from "@/features/tasks/types"
 import type { TaskInput } from "@/features/tasks/schema"
-import { hasMinRole } from "@/lib/permissions"
-import { useAuthStore } from "@/store/authStore"
 
 export default function TasksPage() {
-  const role = useAuthStore((s) => s.role)
-  const canApprove = hasMinRole(role, "manager")
   const [tasks, setTasks] = useState<TaskWithRelations[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<TaskWithRelations | null>(null)
   const [deleting, setDeleting] = useState<TaskWithRelations | null>(null)
   const [bulkDeleting, setBulkDeleting] = useState<TaskWithRelations[] | null>(null)
-  const [rejecting, setRejecting] = useState<TaskWithRelations | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => {
@@ -109,38 +94,6 @@ export default function TasksPage() {
     }
   }
 
-  const handleSubmitForApproval = async (task: TaskWithRelations) => {
-    try {
-      await submitTask(task.id)
-      toast.success("Submitted for approval")
-      load()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to submit task")
-    }
-  }
-
-  const handleApprove = async (task: TaskWithRelations) => {
-    try {
-      await approveTask(task.id)
-      toast.success("Task approved")
-      load()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to approve task")
-    }
-  }
-
-  const handleReject = async (reason: string) => {
-    if (!rejecting) return
-    try {
-      await rejectTask(rejecting.id, reason)
-      toast.success("Task rejected")
-      setRejecting(null)
-      load()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to reject task")
-    }
-  }
-
   const columns = getTaskColumns({
     onEdit: (task) => {
       setEditing(task)
@@ -148,10 +101,6 @@ export default function TasksPage() {
     },
     onDelete: (task) => setDeleting(task),
     onDuplicate: handleDuplicate,
-    onSubmit: handleSubmitForApproval,
-    onApprove: handleApprove,
-    onReject: (task) => setRejecting(task),
-    canApprove,
     enableSelection: true,
   })
 
@@ -161,7 +110,7 @@ export default function TasksPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">Tasks</h1>
-            <InfoTooltip text="A task is one piece of work, like 'Design homepage.' Log your time here. Employees submit tasks, and a Manager must approve them before they can be billed." />
+            <InfoTooltip text="A task is one piece of work, like 'Design homepage.' Log your time here." />
           </div>
           <p className="text-sm text-muted-foreground">Log and manage time entries.</p>
         </div>
@@ -232,13 +181,6 @@ export default function TasksPage() {
         title={`Delete ${bulkDeleting?.length ?? 0} task(s)?`}
         description="This will permanently delete the selected tasks."
         onConfirm={handleBulkDelete}
-      />
-
-      <RejectTaskDialog
-        open={!!rejecting}
-        onOpenChange={(open) => !open && setRejecting(null)}
-        taskName={rejecting?.task_name ?? ""}
-        onConfirm={handleReject}
       />
     </div>
   )

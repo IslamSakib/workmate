@@ -63,7 +63,18 @@ export function getInvoiceColumns({
     {
       accessorKey: "total",
       header: "Total",
-      cell: ({ row }) => formatCurrency(row.original.total, row.original.currency),
+      cell: ({ row }) => {
+        const invoice = row.original
+        const paid = Number(invoice.amount_paid)
+        return (
+          <div>
+            <div>{formatCurrency(invoice.total, invoice.currency)}</div>
+            {paid > 0 && paid < Number(invoice.total) && (
+              <div className="text-xs text-muted-foreground">{formatCurrency(paid, invoice.currency)} paid</div>
+            )}
+          </div>
+        )
+      },
     },
     { accessorKey: "due_date", header: "Due", cell: ({ row }) => row.original.due_date || "—" },
     {
@@ -72,7 +83,7 @@ export function getInvoiceColumns({
       enableHiding: false,
       cell: ({ row }) => {
         const invoice = row.original
-        const canRecordPayment = invoice.status === "sent" || invoice.status === "overdue" || invoice.status === "partial"
+        const canRecordPayment = invoice.status !== "draft" && invoice.status !== "scheduled"
         const canRemind = invoice.status === "sent" || invoice.status === "overdue" || invoice.status === "partial"
         return (
           <DropdownMenu>
@@ -93,7 +104,7 @@ export function getInvoiceColumns({
               {canRecordPayment && (
                 <DropdownMenuItem onClick={() => onRecordPayment(invoice)}>
                   <Wallet className="size-4" />
-                  Record Payment
+                  Payments
                 </DropdownMenuItem>
               )}
               {canRemind && (

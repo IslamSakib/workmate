@@ -1,8 +1,6 @@
 # WorkMate Testing Guide
 
-A plain-language walkthrough for manually testing every feature in WorkMate. Written for support/QA use — no coding knowledge required. Follow each section top to bottom; "Expected result" tells you what should happen if the feature is working.
-
-Tip: Test as an **Owner** account first (full access to everything), then repeat the relevant sections as **Manager**, **Employee**, and **Client Portal** users to confirm permissions are correct.
+A plain-language walkthrough for manually testing every feature in WorkMate. Written for support/QA use — no coding knowledge required. Follow each section top to bottom; "Expected result" tells you what should happen if the feature is working. WorkMate is single-user — there's just one account and no roles/permissions to test across.
 
 ---
 
@@ -13,7 +11,7 @@ Tip: Test as an **Owner** account first (full access to everything), then repeat
 3. Log in at `/login`.
 4. Click "Forgot password" → enter your email → check inbox for reset link → set a new password at `/reset-password`.
 
-**Expected result:** You land on the Dashboard after login. A new account always starts as the **Owner** (full access, no role badge needed).
+**Expected result:** You land on the Dashboard after login with full access to everything.
 
 ---
 
@@ -73,24 +71,7 @@ Tip: Test as an **Owner** account first (full access to everything), then repeat
 
 ---
 
-## 7. Timesheet approval (multi-user only)
-
-Requires at least one teammate invited as **Employee** (see Section 13 first).
-
-1. Log in as an Employee, create a task.
-
-**Expected result:** New task is automatically marked `submitted`.
-
-2. Log in as the Owner or a Manager+ teammate, go to **Tasks**, find the submitted task, click **Approve** (or **Reject**).
-
-**Expected result:**
-- Approving changes status to `approved`.
-- An Employee cannot approve their own task — try it and confirm the action is blocked.
-- Only `approved` tasks show up as billable candidates in Step 9 (Invoicing).
-
----
-
-## 8. Reports
+## 7. Reports
 
 1. Go to **Reports**, pick a date range and optionally filter by client/project.
 2. Export the **Report PDF**.
@@ -99,9 +80,9 @@ Requires at least one teammate invited as **Employee** (see Section 13 first).
 
 ---
 
-## 9. Invoices (task-based)
+## 8. Invoices (task-based)
 
-1. Make sure you have at least one **billable**, **approved** task on a project that isn't already invoiced.
+1. Make sure you have at least one **billable** task on a project that isn't already invoiced.
 2. Go to **Invoices** → "New Invoice", pick the client/project and a billing period covering that task's date.
 3. Confirm the task appears as a checked line item with the correct amount (`hours × hourly rate`).
 4. Uncheck a task, confirm it's excluded; save the invoice.
@@ -113,7 +94,7 @@ Requires at least one teammate invited as **Employee** (see Section 13 first).
 
 ---
 
-## 10. Payments, scheduled & recurring invoices (Manager+)
+## 9. Payments, scheduled & recurring invoices
 
 1. Open an invoice, record a **partial payment** (less than the full amount).
 
@@ -134,7 +115,7 @@ Requires at least one teammate invited as **Employee** (see Section 13 first).
 
 ---
 
-## 11. Retainers (Manager+)
+## 10. Retainers
 
 1. Go to **Retainers** → create one for a client (monthly fee, included hours, overage rate).
 2. Log billable tasks for that client this month totaling more than the included hours.
@@ -144,7 +125,7 @@ Requires at least one teammate invited as **Employee** (see Section 13 first).
 
 ---
 
-## 12. Expenses (Manager+)
+## 11. Expenses
 
 1. Go to **Expenses** → add an expense tied to a client/project, with an amount.
 2. Check **Reports** or **Insights** for profit/profit-margin including this expense.
@@ -153,32 +134,7 @@ Requires at least one teammate invited as **Employee** (see Section 13 first).
 
 ---
 
-## 13. Multi-user team accounts
-
-1. Go to **Team** → "Invite Member", enter an email, pick a role (Admin / Manager / Employee).
-2. Have that person register/log in with the invited email.
-
-**Expected result:** Their invite auto-activates on signup; they land in **your** account (not their own), with nav items filtered by role:
-- **Employee:** no Invoices/Retainers/Expenses/Audit Logs/Insights in the sidebar; read-only on Clients/Projects; full access only to tasks/time entries they created.
-- **Manager:** sees everything an Owner sees except Team management (if restricted).
-- **Admin:** near-Owner-level access.
-
-3. As Employee, try to directly open `/invoices` or `/audit-logs` by typing the URL.
-
-**Expected result:** Page loads but shows no data / an empty or error state — access is enforced by the database, not just the hidden menu link.
-
----
-
-## 14. Audit logs (Manager+)
-
-1. Make a change to a client, project, task, time entry, invoice, retainer, or expense.
-2. Go to **Audit Logs**, search/filter for it.
-
-**Expected result:** A new row appears immediately showing who made the change (`actor_id`) and the before/after values. You should never be able to edit or delete an audit log row.
-
----
-
-## 15. Business Insights (Manager+)
+## 12. Business Insights
 
 1. Go to **Insights** (needs some invoiced/paid history to be meaningful).
 
@@ -186,31 +142,17 @@ Requires at least one teammate invited as **Employee** (see Section 13 first).
 
 ---
 
-## 16. Client portal
+## 13. Command palette
 
-1. Go to **Team** or **Clients** → grant **client portal access** for a client, using an email.
-2. Log in (or register) with that email.
-
-**Expected result:** You're routed to `/portal`, a completely separate, simplified layout (no sidebar/nav from the main app). You only see that one client's projects, hours, and invoices.
-
-3. Try downloading an invoice PDF from the portal.
-4. If a project has a deliverable awaiting approval, click **Approve**.
-
-**Expected result:** Portal is read-only everywhere except deliverable approval. The client can never edit hourly rates or other sensitive fields — there is no edit form available anywhere in the portal.
-
----
-
-## 17. Command palette
-
-1. Press `Ctrl+K` (or `Cmd+K` on Mac) from anywhere in the main app.
+1. Press `Ctrl+K` (or `Cmd+K` on Mac) from anywhere in the app.
 2. Search for a client, project, task, invoice, or expense by name.
 3. Try a quick-create action (e.g. "New Client").
 
-**Expected result:** Results appear as you type; selecting one navigates straight to it. Items respect the same role permissions as the sidebar (e.g. an Employee won't see invoice quick-create).
+**Expected result:** Results appear as you type; selecting one navigates straight to it.
 
 ---
 
-## 18. Settings
+## 14. Settings
 
 1. Go to **Settings**, change any account-level preference available there, save.
 2. Reload the page.
@@ -219,7 +161,7 @@ Requires at least one teammate invited as **Employee** (see Section 13 first).
 
 ---
 
-## 19. Dark mode
+## 15. Dark mode
 
 1. Click the theme toggle in the top bar.
 2. Switch between Light / Dark / System.
@@ -229,7 +171,7 @@ Requires at least one teammate invited as **Employee** (see Section 13 first).
 
 ---
 
-## 20. Multi-currency
+## 16. Multi-currency
 
 1. Confirm clients/projects created with different `currency_code` values (Step 3) each display amounts in their own currency format (symbol + locale grouping) across Tasks, Invoices, Reports, and PDFs.
 
@@ -242,8 +184,5 @@ Requires at least one teammate invited as **Employee** (see Section 13 first).
 - [ ] Can log in/out
 - [ ] Can create a client → project → task → invoice end-to-end
 - [ ] Timer starts, survives a refresh, and stops with correct duration
-- [ ] Employee-submitted task requires Manager+ approval before it's invoiced
 - [ ] Invoiced tasks don't show up again on a new invoice
-- [ ] Audit log records a recent change
-- [ ] Client portal login only shows that client's data
 - [ ] Dark mode toggle still works

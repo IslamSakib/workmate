@@ -4,12 +4,9 @@ import { Sidebar } from "./Sidebar"
 import { Topbar } from "./Topbar"
 import { CommandPalette } from "./CommandPalette"
 import { generateDueRecurringInvoices } from "@/features/recurring-invoices/api"
-import { hasMinRole } from "@/lib/permissions"
-import { useAuthStore } from "@/store/authStore"
 
 export function AppShell() {
   const [commandOpen, setCommandOpen] = useState(false)
-  const role = useAuthStore((s) => s.role)
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -23,10 +20,8 @@ export function AppShell() {
   }, [])
 
   useEffect(() => {
-    if (hasMinRole(role, "manager")) {
-      generateDueRecurringInvoices().catch(() => {})
-    }
-  }, [role])
+    generateDueRecurringInvoices().catch(() => {})
+  }, [])
 
   return (
     <div className="flex min-h-svh">

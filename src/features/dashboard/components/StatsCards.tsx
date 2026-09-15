@@ -1,6 +1,5 @@
 import {
   Clock,
-  ClipboardCheck,
   DollarSign,
   FileWarning,
   FolderKanban,
@@ -86,14 +85,11 @@ export function StatsCards({
   outstanding,
   growth,
   profit,
-  pendingApprovals,
 }: {
   stats: DashboardStats
   outstanding: OutstandingInvoices
   growth: GrowthDeltas
   profit: ProfitMetrics
-  /** Manager+ only — omit entirely for roles that can't approve timesheets. */
-  pendingApprovals?: number
 }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -126,14 +122,6 @@ export function StatsCards({
       />
       <StatCard icon={Gauge} label="Utilization Rate" value={`${stats.utilizationRate.toFixed(0)}%`} tone="info" />
       <StatCard icon={FolderKanban} label="Active Projects" value={String(stats.activeProjects)} tone="violet" />
-      {pendingApprovals !== undefined && (
-        <StatCard
-          icon={ClipboardCheck}
-          label="Pending Approvals"
-          value={String(pendingApprovals)}
-          tone={pendingApprovals > 0 ? "warning" : "success"}
-        />
-      )}
     </div>
   )
 }

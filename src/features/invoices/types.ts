@@ -16,4 +16,21 @@ export interface BillableTask {
   rate: number
   amount: number
   project_name: string | null
+  /** True for the synthetic "flat fee" row representing a fixed-price
+   * project's total — not a real task, links to no task_id when saved. */
+  isFlatFee?: boolean
 }
+
+/** One flat-fee line item (a fixed-price project's total), as actually
+ * invoiced — used to recognize that revenue on the invoice's issue_date
+ * rather than per logged task. */
+export interface FixedFeeRevenueRow {
+  invoice_id: string
+  amount: number
+  issue_date: string
+  client_id: string | null
+  project_id: string | null
+}
+
+/** Stable id for the synthetic flat-fee row in the invoice form's task list. */
+export const FLAT_FEE_ITEM_ID = "flat-fee"

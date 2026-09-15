@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Users, FolderKanban, ListChecks, FileText, Repeat, CalendarSync, Receipt, Users2 } from "lucide-react"
+import { Users, FolderKanban, ListChecks, FileText, Repeat, CalendarSync, Receipt } from "lucide-react"
 import {
   CommandDialog,
   CommandEmpty,
@@ -16,8 +16,6 @@ import { listProjects } from "@/features/projects/api"
 import { listTasks } from "@/features/tasks/api"
 import { listInvoices } from "@/features/invoices/api"
 import { listExpenses } from "@/features/expenses/api"
-import { hasMinRole } from "@/lib/permissions"
-import { useAuthStore } from "@/store/authStore"
 
 interface SearchResult {
   id: string
@@ -37,8 +35,6 @@ export function CommandPalette({
 }) {
   const navigate = useNavigate()
   const setOpen = onOpenChange
-  const role = useAuthStore((s) => s.role)
-  const visibleNavItems = NAV_ITEMS.filter((item) => hasMinRole(role, item.minRole ?? "employee"))
   const [clients, setClients] = useState<SearchResult[]>([])
   const [projects, setProjects] = useState<SearchResult[]>([])
   const [tasks, setTasks] = useState<SearchResult[]>([])
@@ -107,56 +103,40 @@ export function CommandPalette({
         <CommandEmpty>No results found.</CommandEmpty>
 
         <CommandGroup heading="Create">
-          {hasMinRole(role, "manager") && (
-            <>
-              <CommandItem onSelect={() => create("/clients")}>
-                <Users />
-                Create Client
-              </CommandItem>
-              <CommandItem onSelect={() => create("/projects")}>
-                <FolderKanban />
-                Create Project
-              </CommandItem>
-            </>
-          )}
+          <CommandItem onSelect={() => create("/clients")}>
+            <Users />
+            Create Client
+          </CommandItem>
+          <CommandItem onSelect={() => create("/projects")}>
+            <FolderKanban />
+            Create Project
+          </CommandItem>
           <CommandItem onSelect={() => create("/tasks")}>
             <ListChecks />
             Create Task
           </CommandItem>
-          {hasMinRole(role, "manager") && (
-            <>
-              <CommandItem onSelect={() => create("/invoices")}>
-                <FileText />
-                Create Invoice
-              </CommandItem>
-              <CommandItem onSelect={() => create("/retainers")}>
-                <Repeat />
-                Create Retainer
-              </CommandItem>
-              <CommandItem onSelect={() => create("/recurring-invoices")}>
-                <CalendarSync />
-                Create Recurring Invoice
-              </CommandItem>
-            </>
-          )}
-          {hasMinRole(role, "admin") && (
-            <CommandItem onSelect={() => create("/expenses")}>
-              <Receipt />
-              Create Expense
-            </CommandItem>
-          )}
-          {hasMinRole(role, "admin") && (
-            <CommandItem onSelect={() => create("/team")}>
-              <Users2 />
-              Invite Team Member
-            </CommandItem>
-          )}
+          <CommandItem onSelect={() => create("/invoices")}>
+            <FileText />
+            Create Invoice
+          </CommandItem>
+          <CommandItem onSelect={() => create("/retainers")}>
+            <Repeat />
+            Create Retainer
+          </CommandItem>
+          <CommandItem onSelect={() => create("/recurring-invoices")}>
+            <CalendarSync />
+            Create Recurring Invoice
+          </CommandItem>
+          <CommandItem onSelect={() => create("/expenses")}>
+            <Receipt />
+            Create Expense
+          </CommandItem>
         </CommandGroup>
 
         <CommandSeparator />
 
         <CommandGroup heading="Navigate">
-          {visibleNavItems.map((item) => (
+          {NAV_ITEMS.map((item) => (
             <CommandItem key={item.to} onSelect={() => go(item.to)}>
               <item.icon />
               Go to {item.label}

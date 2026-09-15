@@ -37,40 +37,6 @@ export async function deleteTask(id: string): Promise<void> {
   if (error) throw error
 }
 
-export async function submitTask(id: string): Promise<Task> {
-  const { data, error } = await supabase
-    .from("tasks")
-    .update({ approval_status: "submitted", submitted_at: new Date().toISOString(), rejection_reason: null })
-    .eq("id", id)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export async function approveTask(id: string): Promise<Task> {
-  const { data: userData } = await supabase.auth.getUser()
-  const { data, error } = await supabase
-    .from("tasks")
-    .update({ approval_status: "approved", approved_by: userData.user?.id, approved_at: new Date().toISOString() })
-    .eq("id", id)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
-export async function rejectTask(id: string, reason: string): Promise<Task> {
-  const { data, error } = await supabase
-    .from("tasks")
-    .update({ approval_status: "rejected", rejection_reason: reason })
-    .eq("id", id)
-    .select()
-    .single()
-  if (error) throw error
-  return data
-}
-
 export async function duplicateTask(task: Task): Promise<Task> {
   const accountId = useAuthStore.getState().accountId
   const { data: userData } = await supabase.auth.getUser()

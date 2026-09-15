@@ -19,7 +19,7 @@ import { DataTable } from "@/components/shared/DataTable"
 import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import { formatCurrency } from "@/lib/currency"
 import { formatDuration } from "@/lib/duration"
-import { buildChartSeries, getReportRows, summarize, toReportRows } from "@/features/reports/api"
+import { buildChartSeries, getReportFixedFeeRevenue, getReportRows, summarize, toReportRows } from "@/features/reports/api"
 import type { ReportChartPoint, ReportPreset, ReportRow, ReportSummary } from "@/features/reports/types"
 import { generateReportPdf } from "@/lib/pdf/reportPdf"
 import {
@@ -87,12 +87,12 @@ export default function ReportsPage() {
   useEffect(() => {
     let active = true
     setLoading(true)
-    getReportRows(range.from, range.to)
-      .then((raw) => {
+    Promise.all([getReportRows(range.from, range.to), getReportFixedFeeRevenue(range.from, range.to)])
+      .then(([raw, flatFees]) => {
         if (!active) return
-        setSummary(summarize(raw))
+        setSummary(summarize(raw, flatFees))
         setRows(toReportRows(raw))
-        setChart(buildChartSeries(raw, range.from, range.to))
+        setChart(buildChartSeries(raw, range.from, range.to, flatFees))
       })
       .catch((error) => toast.error(error instanceof Error ? error.message : "Failed to load report"))
       .finally(() => active && setLoading(false))

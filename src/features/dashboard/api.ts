@@ -9,6 +9,8 @@ import {
 } from "date-fns"
 import { supabase } from "@/lib/supabaseClient"
 import { listRetainers, getRetainerUsage } from "@/features/retainers/api"
+import { listFixedFeeRevenue } from "@/features/invoices/api"
+import type { FixedFeeRevenueRow } from "@/features/invoices/types"
 import type {
   DashboardStats,
   GrowthDeltas,
@@ -54,25 +56,37 @@ export function revenueFor(task: TaskWithProject) {
   return (task.duration_seconds / 3600) * rate
 }
 
-function sumWithin(tasks: TaskWithProject[], from: Date) {
+/**
+ * A fixed-price project's tasks always contribute $0 via revenueFor (no
+ * hourly rate) — its revenue is recognized instead when actually invoiced,
+ * via the flat-fee line item's amount on the invoice's issue_date.
+ */
+export async function getYearFixedFeeRevenue(): Promise<FixedFeeRevenueRow[]> {
+  return listFixedFeeRevenue(format(startOfYear(new Date()), "yyyy-MM-dd"))
+}
+
+function sumWithin(tasks: TaskWithProject[], flatFees: FixedFeeRevenueRow[], from: Date) {
   const now = new Date()
   const filtered = tasks.filter((t) => isWithinInterval(new Date(t.date), { start: from, end: now }))
   const hours = filtered.reduce((acc, t) => acc + t.duration_seconds / 3600, 0)
   const billableHours = filtered
     .filter((t) => t.billable)
     .reduce((acc, t) => acc + t.duration_seconds / 3600, 0)
-  const revenue = filtered.reduce((acc, t) => acc + revenueFor(t), 0)
-  return { hours, billableHours, revenue }
+  const taskRevenue = filtered.reduce((acc, t) => acc + revenueFor(t), 0)
+  const flatFeeRevenue = flatFees
+    .filter((f) => isWithinInterval(new Date(f.issue_date), { start: from, end: now }))
+    .reduce((acc, f) => acc + f.amount, 0)
+  return { hours, billableHours, revenue: taskRevenue + flatFeeRevenue }
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const tasks = await getYearTasks()
+  const [tasks, flatFees] = await Promise.all([getYearTasks(), getYearFixedFeeRevenue()])
   const now = new Date()
 
-  const today = sumWithin(tasks, startOfDay(now))
-  const week = sumWithin(tasks, startOfWeek(now))
-  const month = sumWithin(tasks, startOfMonth(now))
-  const year = sumWithin(tasks, startOfYear(now))
+  const today = sumWithin(tasks, flatFees, startOfDay(now))
+  const week = sumWithin(tasks, flatFees, startOfWeek(now))
+  const month = sumWithin(tasks, flatFees, startOfMonth(now))
+  const year = sumWithin(tasks, flatFees, startOfYear(now))
 
   const [{ count: activeProjects }, { count: totalClients }, { count: totalTasks }] =
     await Promise.all([
@@ -250,20 +264,23 @@ export function getGrowthDeltas(trend: TrendPoint[]): GrowthDeltas {
 }
 
 export async function getMonthlyTrend(): Promise<TrendPoint[]> {
-  const tasks = await getYearTasks()
+  const [tasks, flatFees] = await Promise.all([getYearTasks(), getYearFixedFeeRevenue()])
   const months: TrendPoint[] = []
 
   for (let i = 11; i >= 0; i--) {
     const monthDate = subMonths(new Date(), i)
     const label = format(monthDate, "MMM")
-    const monthTasks = tasks.filter(
-      (t) =>
-        new Date(t.date).getMonth() === monthDate.getMonth() &&
-        new Date(t.date).getFullYear() === monthDate.getFullYear(),
-    )
+    const inMonth = (dateStr: string) => {
+      const d = new Date(dateStr)
+      return d.getMonth() === monthDate.getMonth() && d.getFullYear() === monthDate.getFullYear()
+    }
+    const monthTasks = tasks.filter((t) => inMonth(t.date))
     const hours = monthTasks.reduce((acc, t) => acc + t.duration_seconds / 3600, 0)
-    const revenue = monthTasks.reduce((acc, t) => acc + revenueFor(t), 0)
-    months.push({ label, hours: Math.round(hours * 10) / 10, revenue: Math.round(revenue) })
+    const taskRevenue = monthTasks.reduce((acc, t) => acc + revenueFor(t), 0)
+    const flatFeeRevenue = flatFees
+      .filter((f) => inMonth(f.issue_date))
+      .reduce((acc, f) => acc + f.amount, 0)
+    months.push({ label, hours: Math.round(hours * 10) / 10, revenue: Math.round(taskRevenue + flatFeeRevenue) })
   }
 
   return months
@@ -289,15 +306,6 @@ export async function getRecentTasks(limit = 5): Promise<RecentTaskRow[]> {
     project_name: t.projects?.project_name ?? null,
     client_name: t.clients?.client_name ?? null,
   }))
-}
-
-export async function getPendingApprovalsCount(): Promise<number> {
-  const { count, error } = await supabase
-    .from("tasks")
-    .select("*", { count: "exact", head: true })
-    .eq("approval_status", "submitted")
-  if (error) throw error
-  return count ?? 0
 }
 
 export async function getRecentActivity(limit = 8): Promise<RecentActivityRow[]> {

@@ -1,16 +1,11 @@
 import { NavLink } from "react-router-dom"
 import { cn } from "@/lib/utils"
-import { hasMinRole } from "@/lib/permissions"
-import { useAuthStore } from "@/store/authStore"
 import { NAV_ITEMS } from "./nav-items"
 
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
-  const role = useAuthStore((s) => s.role)
-  const visibleItems = NAV_ITEMS.filter((item) => hasMinRole(role, item.minRole ?? "employee"))
-
   return (
     <nav className="flex flex-1 flex-col gap-0.5 p-2.5">
-      {visibleItems.map((item) => (
+      {NAV_ITEMS.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}

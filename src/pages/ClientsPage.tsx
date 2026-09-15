@@ -7,24 +7,18 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { InfoTooltip } from "@/components/shared/InfoTooltip"
-import { createClient, deleteClient, inviteClientToPortal, listClients, updateClient } from "@/features/clients/api"
+import { createClient, deleteClient, listClients, updateClient } from "@/features/clients/api"
 import { ClientFormDialog } from "@/features/clients/components/ClientFormDialog"
-import { InviteClientPortalDialog } from "@/features/clients/components/InviteClientPortalDialog"
 import { getClientColumns } from "@/features/clients/components/columns"
 import type { Client } from "@/features/clients/types"
 import type { ClientInput } from "@/features/clients/schema"
-import { hasMinRole } from "@/lib/permissions"
-import { useAuthStore } from "@/store/authStore"
 
 export default function ClientsPage() {
-  const role = useAuthStore((s) => s.role)
-  const readOnly = !hasMinRole(role, "manager")
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Client | null>(null)
   const [deleting, setDeleting] = useState<Client | null>(null)
-  const [invitingPortal, setInvitingPortal] = useState<Client | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => {
@@ -83,8 +77,6 @@ export default function ClientsPage() {
       setFormOpen(true)
     },
     onDelete: (client) => setDeleting(client),
-    onInvitePortal: (client) => setInvitingPortal(client),
-    readOnly,
   })
 
   return (
@@ -97,17 +89,15 @@ export default function ClientsPage() {
           </div>
           <p className="text-sm text-muted-foreground">Manage your client relationships.</p>
         </div>
-        {!readOnly && (
-          <Button
-            onClick={() => {
-              setEditing(null)
-              setFormOpen(true)
-            }}
-          >
-            <Plus className="size-4" />
-            New Client
-          </Button>
-        )}
+        <Button
+          onClick={() => {
+            setEditing(null)
+            setFormOpen(true)
+          }}
+        >
+          <Plus className="size-4" />
+          New Client
+        </Button>
       </div>
 
       {loading ? (
@@ -138,17 +128,6 @@ export default function ClientsPage() {
         title="Delete client?"
         description={`This will permanently delete ${deleting?.client_name}. Related projects and tasks will keep their data but lose the client link.`}
         onConfirm={handleDelete}
-      />
-
-      <InviteClientPortalDialog
-        open={!!invitingPortal}
-        onOpenChange={(open) => !open && setInvitingPortal(null)}
-        client={invitingPortal}
-        onSubmit={async (email) => {
-          if (!invitingPortal) return
-          await inviteClientToPortal(invitingPortal.id, email)
-          toast.success("Portal invite sent")
-        }}
       />
     </div>
   )

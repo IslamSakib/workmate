@@ -7,7 +7,6 @@ import {
   getGrowthDeltas,
   getMonthlyTrend,
   getOutstandingInvoices,
-  getPendingApprovalsCount,
   getProfitMetrics,
   getProfitTrend,
   getRecentActivity,
@@ -15,8 +14,6 @@ import {
   getRetainerMetrics,
   getUpcomingDeadlines,
 } from "@/features/dashboard/api"
-import { hasMinRole } from "@/lib/permissions"
-import { useAuthStore } from "@/store/authStore"
 import { StatsCards } from "@/features/dashboard/components/StatsCards"
 import { RevenueTrendChart } from "@/features/dashboard/components/RevenueTrendChart"
 import { HoursTrendChart } from "@/features/dashboard/components/HoursTrendChart"
@@ -38,9 +35,6 @@ import type {
 } from "@/features/dashboard/types"
 
 export default function DashboardPage() {
-  const role = useAuthStore((s) => s.role)
-  const canApprove = hasMinRole(role, "manager")
-  const [pendingApprovals, setPendingApprovals] = useState<number | null>(null)
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [trend, setTrend] = useState<TrendPoint[]>([])
   const [profitTrend, setProfitTrend] = useState<TrendPoint[]>([])
@@ -56,7 +50,7 @@ export default function DashboardPage() {
     let active = true
     async function load() {
       try {
-        const [statsRes, trendRes, tasksRes, activityRes, outstandingRes, deadlinesRes, retainersRes, approvalsRes] =
+        const [statsRes, trendRes, tasksRes, activityRes, outstandingRes, deadlinesRes, retainersRes] =
           await Promise.all([
             getDashboardStats(),
             getMonthlyTrend(),
@@ -65,7 +59,6 @@ export default function DashboardPage() {
             getOutstandingInvoices(),
             getUpcomingDeadlines(),
             getRetainerMetrics(),
-            canApprove ? getPendingApprovalsCount() : Promise.resolve(null),
           ])
         if (!active) return
         const [profitRes, profitTrendRes] = await Promise.all([
@@ -82,7 +75,6 @@ export default function DashboardPage() {
         setDeadlines(deadlinesRes)
         setRetainers(retainersRes)
         setProfit(profitRes)
-        setPendingApprovals(approvalsRes)
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to load dashboard")
       } finally {
@@ -99,7 +91,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: canApprove ? 7 : 6 }).map((_, i) => (
+          {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
@@ -122,13 +114,7 @@ export default function DashboardPage() {
 
       <QuickActions />
 
-      <StatsCards
-        stats={stats}
-        outstanding={outstanding}
-        growth={growth}
-        profit={profit}
-        pendingApprovals={pendingApprovals ?? undefined}
-      />
+      <StatsCards stats={stats} outstanding={outstanding} growth={growth} profit={profit} />
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <RevenueTrendChart data={trend} />

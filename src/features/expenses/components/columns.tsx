@@ -14,10 +14,9 @@ import type { ExpenseWithRefs } from "../types"
 interface ColumnActions {
   onEdit: (expense: ExpenseWithRefs) => void
   onDelete: (expense: ExpenseWithRefs) => void
-  readOnly?: boolean
 }
 
-export function getExpenseColumns({ onEdit, onDelete, readOnly }: ColumnActions): ColumnDef<ExpenseWithRefs, unknown>[] {
+export function getExpenseColumns({ onEdit, onDelete }: ColumnActions): ColumnDef<ExpenseWithRefs, unknown>[] {
   return [
     { accessorKey: "category", header: "Category" },
     {
@@ -40,33 +39,29 @@ export function getExpenseColumns({ onEdit, onDelete, readOnly }: ColumnActions)
       header: "Date",
       cell: ({ row }) => format(new Date(row.original.date), "MMM d, yyyy"),
     },
-    ...(readOnly
-      ? []
-      : [
-          {
-            id: "actions",
-            header: "",
-            enableHiding: false,
-            cell: ({ row }) => (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="size-8">
-                    <MoreHorizontal className="size-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onEdit(row.original)}>
-                    <Pencil className="size-4" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem variant="destructive" onClick={() => onDelete(row.original)}>
-                    <Trash2 className="size-4" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ),
-          } satisfies ColumnDef<ExpenseWithRefs, unknown>,
-        ]),
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="size-8">
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onEdit(row.original)}>
+              <Pencil className="size-4" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem variant="destructive" onClick={() => onDelete(row.original)}>
+              <Trash2 className="size-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
   ]
 }

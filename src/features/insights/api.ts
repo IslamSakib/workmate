@@ -1,7 +1,9 @@
-import { addMonths, format, startOfMonth, subDays, subMonths } from "date-fns"
+import { addMonths, format, startOfMonth, startOfYear, subDays, subMonths } from "date-fns"
 import { supabase } from "@/lib/supabaseClient"
 import { getYearTasks, revenueFor } from "@/features/dashboard/api"
 import type { TaskWithProject } from "@/features/dashboard/api"
+import { listFixedFeeRevenue } from "@/features/invoices/api"
+import type { FixedFeeRevenueRow } from "@/features/invoices/types"
 import type { TrendPoint } from "@/features/dashboard/types"
 import type { BusinessInsights, ForecastPoint, ProjectProfitabilityRow, TopClientRow } from "./types"
 
@@ -19,13 +21,20 @@ interface ClientHealth {
  * Activity" dimension from the original spec is intentionally dropped —
  * the remaining three are weighted equally instead.
  */
-async function getClientHealthScores(tasks: TaskWithProject[]): Promise<Map<string, ClientHealth>> {
+async function getClientHealthScores(
+  tasks: TaskWithProject[],
+  flatFees: FixedFeeRevenueRow[],
+): Promise<Map<string, ClientHealth>> {
   const revenueByClient = new Map<string, number>()
   const nameByClient = new Map<string, string>()
   for (const t of tasks) {
     if (!t.client_id) continue
     revenueByClient.set(t.client_id, (revenueByClient.get(t.client_id) ?? 0) + revenueFor(t))
     if (t.clients?.client_name) nameByClient.set(t.client_id, t.clients.client_name)
+  }
+  for (const f of flatFees) {
+    if (!f.client_id) continue
+    revenueByClient.set(f.client_id, (revenueByClient.get(f.client_id) ?? 0) + f.amount)
   }
 
   const thirtyDaysAgo = format(subDays(new Date(), 30), "yyyy-MM-dd")
@@ -92,7 +101,8 @@ function clamp(value: number, min: number, max: number) {
 
 export async function getTopClients(limit = 10): Promise<TopClientRow[]> {
   const tasks = await getYearTasks()
-  const health = await getClientHealthScores(tasks)
+  const flatFees = await listFixedFeeRevenue(format(startOfYear(new Date()), "yyyy-MM-dd"))
+  const health = await getClientHealthScores(tasks, flatFees)
 
   return Array.from(health.entries())
     .map(([id, h]) => ({ id, client_name: h.client_name, revenue: h.revenue, healthScore: h.score }))
@@ -102,6 +112,7 @@ export async function getTopClients(limit = 10): Promise<TopClientRow[]> {
 
 export async function getProjectProfitability(limit = 10): Promise<ProjectProfitabilityRow[]> {
   const tasks = await getYearTasks()
+  const flatFees = await listFixedFeeRevenue(format(startOfYear(new Date()), "yyyy-MM-dd"))
 
   const revenueByProject = new Map<string, number>()
   const nameByProject = new Map<string, { project_name: string; client_name: string | null }>()
@@ -114,6 +125,10 @@ export async function getProjectProfitability(limit = 10): Promise<ProjectProfit
         client_name: t.clients?.client_name ?? null,
       })
     }
+  }
+  for (const f of flatFees) {
+    if (!f.project_id) continue
+    revenueByProject.set(f.project_id, (revenueByProject.get(f.project_id) ?? 0) + f.amount)
   }
 
   const yearStart = format(startOfMonth(subMonths(new Date(), 11)), "yyyy-MM-dd")

@@ -10,6 +10,7 @@ import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import {
   createInvoice,
   deleteInvoice,
+  deletePayment,
   getInvoiceItems,
   listInvoices,
   promoteScheduledInvoices,
@@ -50,9 +51,12 @@ export default function InvoicesPage() {
   const load = async () => {
     setLoading(true)
     try {
-      setInvoices(await listInvoices())
+      const fetched = await listInvoices()
+      setInvoices(fetched)
+      return fetched
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load invoices")
+      return []
     } finally {
       setLoading(false)
     }
@@ -122,7 +126,15 @@ export default function InvoicesPage() {
     if (!payingInvoice) return
     await recordPayment(payingInvoice.id, { amount, paid_date: paidDate, method: method || null })
     toast.success("Payment recorded")
-    load()
+    const fetched = await load()
+    setPayingInvoice((prev) => fetched.find((i) => i.id === prev?.id) ?? prev)
+  }
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!payingInvoice) return
+    await deletePayment(paymentId, payingInvoice.id)
+    const fetched = await load()
+    setPayingInvoice((prev) => fetched.find((i) => i.id === prev?.id) ?? prev)
   }
 
   const handleSendReminder = async (invoice: InvoiceWithRelations) => {
@@ -219,6 +231,7 @@ export default function InvoicesPage() {
         onOpenChange={(open) => !open && setPayingInvoice(null)}
         invoice={payingInvoice}
         onSubmit={handleRecordPayment}
+        onDeletePayment={handleDeletePayment}
       />
     </div>
   )

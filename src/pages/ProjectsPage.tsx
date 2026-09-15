@@ -12,12 +12,8 @@ import { ProjectFormDialog } from "@/features/projects/components/ProjectFormDia
 import { getProjectColumns } from "@/features/projects/components/columns"
 import type { ProjectWithClient } from "@/features/projects/types"
 import type { ProjectInput } from "@/features/projects/schema"
-import { hasMinRole } from "@/lib/permissions"
-import { useAuthStore } from "@/store/authStore"
 
 export default function ProjectsPage() {
-  const role = useAuthStore((s) => s.role)
-  const readOnly = !hasMinRole(role, "manager")
   const [projects, setProjects] = useState<ProjectWithClient[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
@@ -81,7 +77,6 @@ export default function ProjectsPage() {
       setFormOpen(true)
     },
     onDelete: (project) => setDeleting(project),
-    readOnly,
   })
 
   return (
@@ -94,17 +89,15 @@ export default function ProjectsPage() {
           </div>
           <p className="text-sm text-muted-foreground">Track project status and billing.</p>
         </div>
-        {!readOnly && (
-          <Button
-            onClick={() => {
-              setEditing(null)
-              setFormOpen(true)
-            }}
-          >
-            <Plus className="size-4" />
-            New Project
-          </Button>
-        )}
+        <Button
+          onClick={() => {
+            setEditing(null)
+            setFormOpen(true)
+          }}
+        >
+          <Plus className="size-4" />
+          New Project
+        </Button>
       </div>
 
       {loading ? (
