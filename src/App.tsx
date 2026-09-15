@@ -16,6 +16,7 @@ import ClientsPage from "@/pages/ClientsPage"
 import ProjectsPage from "@/pages/ProjectsPage"
 import TasksPage from "@/pages/TasksPage"
 import TimerPage from "@/pages/TimerPage"
+import CalendarPage from "@/pages/CalendarPage"
 import ReportsPage from "@/pages/ReportsPage"
 import InsightsPage from "@/pages/InsightsPage"
 import InvoicesPage from "@/pages/InvoicesPage"
@@ -53,6 +54,7 @@ function App() {
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/timer" element={<TimerPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/insights" element={<InsightsPage />} />
             <Route path="/invoices" element={<InvoicesPage />} />
