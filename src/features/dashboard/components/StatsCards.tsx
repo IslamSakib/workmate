@@ -4,14 +4,25 @@ import {
   FileWarning,
   FolderKanban,
   Gauge,
+  Landmark,
   PiggyBank,
   TrendingDown,
   TrendingUp,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { formatCurrencyAmounts, totalOf } from "@/lib/currency"
+import { formatCurrencyAmounts, totalOf, type CurrencyAmounts } from "@/lib/currency"
+import type { CurrencyCode } from "@/types/database"
 import type { DashboardStats, GrowthDeltas, OutstandingInvoices, ProfitMetrics } from "../types"
+
+/** revenueMonth scaled by the account's tax set-aside rate, per currency. */
+function taxSetAsideFor(revenueMonth: CurrencyAmounts, taxRatePct: number): CurrencyAmounts {
+  const out: CurrencyAmounts = {}
+  for (const [code, amount] of Object.entries(revenueMonth) as [CurrencyCode, number][]) {
+    out[code] = (amount * taxRatePct) / 100
+  }
+  return out
+}
 
 const TONES = {
   blue: { border: "border-l-blue-500", bg: "bg-blue-500/10 dark:bg-blue-500/15", text: "text-blue-600 dark:text-blue-400" },
@@ -85,11 +96,13 @@ export function StatsCards({
   outstanding,
   growth,
   profit,
+  taxRatePct,
 }: {
   stats: DashboardStats
   outstanding: OutstandingInvoices
   growth: GrowthDeltas
   profit: ProfitMetrics
+  taxRatePct: number
 }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -120,6 +133,15 @@ export function StatsCards({
         value={`${formatCurrencyAmounts(outstanding.total)} (${outstanding.count})`}
         tone="warning"
       />
+      {taxRatePct > 0 && (
+        <StatCard
+          icon={Landmark}
+          label="Tax Set-Aside"
+          value={formatCurrencyAmounts(taxSetAsideFor(stats.revenueMonth, taxRatePct))}
+          tone="blue"
+          footer={<span className="text-xs text-muted-foreground">{taxRatePct}% of this month's revenue</span>}
+        />
+      )}
       <StatCard icon={Gauge} label="Utilization Rate" value={`${stats.utilizationRate.toFixed(0)}%`} tone="info" />
       <StatCard icon={FolderKanban} label="Active Projects" value={String(stats.activeProjects)} tone="violet" />
     </div>

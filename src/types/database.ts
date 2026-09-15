@@ -268,6 +268,7 @@ export interface Database {
           date_format: string
           theme: string
           invoice_prefix: string
+          tax_rate_pct: number
           created_at: string
           updated_at: string
         }

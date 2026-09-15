@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
+import { useForm, type Resolver } from "react-hook-form"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -29,8 +29,8 @@ export default function SettingsPage() {
 
   const profileForm = useForm<ProfileInput>({ resolver: zodResolver(profileSchema) })
   const preferencesForm = useForm<PreferencesInput>({
-    resolver: zodResolver(preferencesSchema),
-    defaultValues: { default_currency: "USD", date_format: "MM/dd/yyyy", invoice_prefix: "INV-" },
+    resolver: zodResolver(preferencesSchema) as Resolver<PreferencesInput>,
+    defaultValues: { default_currency: "USD", date_format: "MM/dd/yyyy", invoice_prefix: "INV-", tax_rate_pct: 0 },
   })
   const passwordForm = useForm<ResetPasswordInput>({ resolver: zodResolver(resetPasswordSchema) })
 
@@ -44,6 +44,7 @@ export default function SettingsPage() {
             default_currency: settings.default_currency,
             date_format: settings.date_format,
             invoice_prefix: settings.invoice_prefix,
+            tax_rate_pct: settings.tax_rate_pct,
           })
         }
       })
@@ -164,6 +165,21 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <Label htmlFor="invoice_prefix">Invoice prefix</Label>
               <Input id="invoice_prefix" {...preferencesForm.register("invoice_prefix")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tax_rate_pct">Tax set-aside rate (%)</Label>
+              <Input
+                id="tax_rate_pct"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                {...preferencesForm.register("tax_rate_pct")}
+              />
+              <p className="text-xs text-muted-foreground">
+                Used to estimate how much of each period's revenue to set aside for taxes on the
+                Dashboard. Not tax advice — check with an accountant for your actual rate.
+              </p>
             </div>
             <Button type="submit" disabled={preferencesForm.formState.isSubmitting}>
               Save preferences

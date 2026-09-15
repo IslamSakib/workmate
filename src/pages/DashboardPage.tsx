@@ -23,6 +23,8 @@ import { RecentActivity } from "@/features/dashboard/components/RecentActivity"
 import { UpcomingDeadlines } from "@/features/dashboard/components/UpcomingDeadlines"
 import { RetainerUsageWidget } from "@/features/dashboard/components/RetainerUsageWidget"
 import { QuickActions } from "@/features/dashboard/components/QuickActions"
+import { useAuthStore } from "@/store/authStore"
+import { getSettings } from "@/features/settings/api"
 import type {
   DashboardStats,
   OutstandingInvoices,
@@ -35,6 +37,7 @@ import type {
 } from "@/features/dashboard/types"
 
 export default function DashboardPage() {
+  const { user } = useAuthStore()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [trend, setTrend] = useState<TrendPoint[]>([])
   const [profitTrend, setProfitTrend] = useState<TrendPoint[]>([])
@@ -44,13 +47,15 @@ export default function DashboardPage() {
   const [deadlines, setDeadlines] = useState<UpcomingDeadline[]>([])
   const [retainers, setRetainers] = useState<RetainerMetrics | null>(null)
   const [profit, setProfit] = useState<ProfitMetrics | null>(null)
+  const [taxRatePct, setTaxRatePct] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!user) return
     let active = true
     async function load() {
       try {
-        const [statsRes, trendRes, tasksRes, activityRes, outstandingRes, deadlinesRes, retainersRes] =
+        const [statsRes, trendRes, tasksRes, activityRes, outstandingRes, deadlinesRes, retainersRes, settingsRes] =
           await Promise.all([
             getDashboardStats(),
             getMonthlyTrend(),
@@ -59,6 +64,7 @@ export default function DashboardPage() {
             getOutstandingInvoices(),
             getUpcomingDeadlines(),
             getRetainerMetrics(),
+            getSettings(user!.id),
           ])
         if (!active) return
         const [profitRes, profitTrendRes] = await Promise.all([
@@ -75,6 +81,7 @@ export default function DashboardPage() {
         setDeadlines(deadlinesRes)
         setRetainers(retainersRes)
         setProfit(profitRes)
+        setTaxRatePct(settingsRes?.tax_rate_pct ?? 0)
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to load dashboard")
       } finally {
@@ -85,7 +92,7 @@ export default function DashboardPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [user])
 
   if (loading || !stats || !outstanding || !retainers || !profit) {
     return (
@@ -114,7 +121,7 @@ export default function DashboardPage() {
 
       <QuickActions />
 
-      <StatsCards stats={stats} outstanding={outstanding} growth={growth} profit={profit} />
+      <StatsCards stats={stats} outstanding={outstanding} growth={growth} profit={profit} taxRatePct={taxRatePct} />
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <RevenueTrendChart data={trend} />

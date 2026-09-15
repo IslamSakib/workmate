@@ -9,5 +9,6 @@ export const preferencesSchema = z.object({
   default_currency: z.enum(["USD", "BDT", "EUR", "GBP", "PHP"]),
   date_format: z.string().min(1),
   invoice_prefix: z.string().min(1),
+  tax_rate_pct: z.coerce.number().min(0).max(100),
 })
 export type PreferencesInput = z.infer<typeof preferencesSchema>
