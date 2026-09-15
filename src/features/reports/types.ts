@@ -1,3 +1,5 @@
+import type { CurrencyAmounts } from "@/lib/currency"
+
 export type ReportPreset = "daily" | "weekly" | "monthly" | "yearly" | "custom"
 
 export interface ReportRow {
@@ -12,7 +14,7 @@ export interface ReportRow {
 
 export interface ReportSummary {
   totalSeconds: number
-  totalRevenue: number
+  totalRevenue: CurrencyAmounts
   projectCount: number
   clientCount: number
 }
@@ -20,5 +22,5 @@ export interface ReportSummary {
 export interface ReportChartPoint {
   label: string
   hours: number
-  revenue: number
+  revenue: CurrencyAmounts
 }

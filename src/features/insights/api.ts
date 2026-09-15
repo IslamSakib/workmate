@@ -1,15 +1,24 @@
 import { addMonths, format, startOfMonth, startOfYear, subDays, subMonths } from "date-fns"
 import { supabase } from "@/lib/supabaseClient"
-import { getYearTasks, revenueFor } from "@/features/dashboard/api"
+import { getYearTasks, revenueFor, currencyFor } from "@/features/dashboard/api"
 import type { TaskWithProject } from "@/features/dashboard/api"
 import { listFixedFeeRevenue } from "@/features/invoices/api"
 import type { FixedFeeRevenueRow } from "@/features/invoices/types"
 import type { TrendPoint } from "@/features/dashboard/types"
+import {
+  currenciesIn,
+  roundAmounts,
+  subtractCurrencyAmounts,
+  sumByCurrency,
+  totalOf,
+  type CurrencyAmounts,
+} from "@/lib/currency"
+import type { CurrencyCode } from "@/types/database"
 import type { BusinessInsights, ForecastPoint, ProjectProfitabilityRow, TopClientRow } from "./types"
 
 interface ClientHealth {
   client_name: string
-  revenue: number
+  revenue: CurrencyAmounts
   score: number
 }
 
@@ -25,16 +34,22 @@ async function getClientHealthScores(
   tasks: TaskWithProject[],
   flatFees: FixedFeeRevenueRow[],
 ): Promise<Map<string, ClientHealth>> {
-  const revenueByClient = new Map<string, number>()
+  const revenueByClient = new Map<string, CurrencyAmounts>()
   const nameByClient = new Map<string, string>()
   for (const t of tasks) {
     if (!t.client_id) continue
-    revenueByClient.set(t.client_id, (revenueByClient.get(t.client_id) ?? 0) + revenueFor(t))
+    const amount = revenueFor(t)
+    if (amount !== 0) {
+      const code = currencyFor(t)
+      const existing = revenueByClient.get(t.client_id) ?? {}
+      revenueByClient.set(t.client_id, { ...existing, [code]: (existing[code] ?? 0) + amount })
+    }
     if (t.clients?.client_name) nameByClient.set(t.client_id, t.clients.client_name)
   }
   for (const f of flatFees) {
     if (!f.client_id) continue
-    revenueByClient.set(f.client_id, (revenueByClient.get(f.client_id) ?? 0) + f.amount)
+    const existing = revenueByClient.get(f.client_id) ?? {}
+    revenueByClient.set(f.client_id, { ...existing, [f.currency]: (existing[f.currency] ?? 0) + f.amount })
   }
 
   const thirtyDaysAgo = format(subDays(new Date(), 30), "yyyy-MM-dd")
@@ -68,12 +83,14 @@ async function getClientHealthScores(
     latenessByClient.set(inv.client_id, list)
   }
 
-  const maxRevenue = Math.max(0, ...revenueByClient.values())
+  // Ranked relative to the top client, so mixing currencies in this one internal
+  // ranking score (not a displayed dollar figure) is an acceptable simplification.
+  const maxRevenue = Math.max(0, ...Array.from(revenueByClient.values()).map(totalOf))
   const maxActivity = Math.max(0, ...activityByClient.values())
 
   const result = new Map<string, ClientHealth>()
   for (const [clientId, revenue] of revenueByClient) {
-    const revenueScore = maxRevenue > 0 ? (revenue / maxRevenue) * 100 : 0
+    const revenueScore = maxRevenue > 0 ? (totalOf(revenue) / maxRevenue) * 100 : 0
     const activityScore = maxActivity > 0 ? ((activityByClient.get(clientId) ?? 0) / maxActivity) * 100 : 0
 
     const latenessList = latenessByClient.get(clientId)
@@ -106,7 +123,7 @@ export async function getTopClients(limit = 10): Promise<TopClientRow[]> {
 
   return Array.from(health.entries())
     .map(([id, h]) => ({ id, client_name: h.client_name, revenue: h.revenue, healthScore: h.score }))
-    .sort((a, b) => b.revenue - a.revenue)
+    .sort((a, b) => totalOf(b.revenue) - totalOf(a.revenue))
     .slice(0, limit)
 }
 
@@ -114,11 +131,16 @@ export async function getProjectProfitability(limit = 10): Promise<ProjectProfit
   const tasks = await getYearTasks()
   const flatFees = await listFixedFeeRevenue(format(startOfYear(new Date()), "yyyy-MM-dd"))
 
-  const revenueByProject = new Map<string, number>()
+  const revenueByProject = new Map<string, CurrencyAmounts>()
   const nameByProject = new Map<string, { project_name: string; client_name: string | null }>()
   for (const t of tasks) {
     if (!t.project_id) continue
-    revenueByProject.set(t.project_id, (revenueByProject.get(t.project_id) ?? 0) + revenueFor(t))
+    const amount = revenueFor(t)
+    if (amount !== 0) {
+      const code = currencyFor(t)
+      const existing = revenueByProject.get(t.project_id) ?? {}
+      revenueByProject.set(t.project_id, { ...existing, [code]: (existing[code] ?? 0) + amount })
+    }
     if (t.projects?.project_name) {
       nameByProject.set(t.project_id, {
         project_name: t.projects.project_name,
@@ -128,28 +150,46 @@ export async function getProjectProfitability(limit = 10): Promise<ProjectProfit
   }
   for (const f of flatFees) {
     if (!f.project_id) continue
-    revenueByProject.set(f.project_id, (revenueByProject.get(f.project_id) ?? 0) + f.amount)
+    const existing = revenueByProject.get(f.project_id) ?? {}
+    revenueByProject.set(f.project_id, { ...existing, [f.currency]: (existing[f.currency] ?? 0) + f.amount })
   }
 
   const yearStart = format(startOfMonth(subMonths(new Date(), 11)), "yyyy-MM-dd")
   const { data: expenseRows, error } = await supabase
     .from("expenses")
-    .select("project_id, amount")
+    .select("project_id, amount, currency")
     .not("project_id", "is", null)
     .gte("date", yearStart)
   if (error) throw error
 
-  const expensesByProject = new Map<string, number>()
+  const expensesByProject = new Map<string, CurrencyAmounts>()
   for (const e of expenseRows ?? []) {
     if (!e.project_id) continue
-    expensesByProject.set(e.project_id, (expensesByProject.get(e.project_id) ?? 0) + Number(e.amount))
+    const existing = expensesByProject.get(e.project_id) ?? {}
+    expensesByProject.set(e.project_id, {
+      ...existing,
+      [e.currency]: (existing[e.currency] ?? 0) + Number(e.amount),
+    })
   }
 
-  return Array.from(revenueByProject.entries())
-    .map(([id, revenue]) => {
-      const expenses = expensesByProject.get(id) ?? 0
-      const profit = revenue - expenses
+  // Every project id that has revenue and/or expenses this year, not just revenue —
+  // a project with only expenses logged (no revenue yet) still belongs in the table.
+  const projectIds = new Set([...revenueByProject.keys(), ...expensesByProject.keys()])
+
+  return Array.from(projectIds)
+    .map((id) => {
+      const revenue = revenueByProject.get(id) ?? {}
+      const expenses = expensesByProject.get(id) ?? {}
+      const profit = subtractCurrencyAmounts(revenue, expenses)
       const meta = nameByProject.get(id)
+
+      // A margin % only means something for a single currency — see the
+      // matching rule on Dashboard's profitMarginMonth.
+      const currencies = new Set([...Object.keys(revenue), ...Object.keys(expenses)]) as Set<CurrencyCode>
+      const singleCurrency = currencies.size === 1 ? [...currencies][0] : null
+      const revenueSingle = singleCurrency ? (revenue[singleCurrency] ?? 0) : 0
+      const profitSingle = singleCurrency ? (profit[singleCurrency] ?? 0) : 0
+
       return {
         id,
         project_name: meta?.project_name ?? "—",
@@ -157,10 +197,10 @@ export async function getProjectProfitability(limit = 10): Promise<ProjectProfit
         revenue,
         expenses,
         profit,
-        marginPct: revenue > 0 ? (profit / revenue) * 100 : null,
+        marginPct: singleCurrency && revenueSingle > 0 ? (profitSingle / revenueSingle) * 100 : null,
       }
     })
-    .sort((a, b) => b.profit - a.profit)
+    .sort((a, b) => totalOf(b.profit) - totalOf(a.profit))
     .slice(0, limit)
 }
 
@@ -174,20 +214,30 @@ export function getRevenueForecast(trend: TrendPoint[], monthsAhead = 3): Foreca
   const points: ForecastPoint[] = trend.map((t) => ({ label: t.label, revenue: t.revenue, forecastRevenue: null }))
   if (trend.length === 0) return points
 
-  const recent = trend.slice(-3).map((t) => t.revenue)
-  const deltas = recent.slice(1).map((v, i) => v - recent[i])
-  const avgDelta = deltas.length > 0 ? average(deltas) : 0
+  // One trailing-delta projection per currency, so a currency that only
+  // recently started being used doesn't get its forecast skewed by another.
+  const codes = currenciesIn(...trend.map((t) => t.revenue))
+  const avgDeltaByCode = new Map<CurrencyCode, number>()
+  for (const code of codes) {
+    const recent = trend.slice(-3).map((t) => t.revenue[code] ?? 0)
+    const deltas = recent.slice(1).map((v, i) => v - recent[i])
+    avgDeltaByCode.set(code, deltas.length > 0 ? average(deltas) : 0)
+  }
 
   const last = points[points.length - 1]
   last.forecastRevenue = last.revenue
 
-  let projected = last.revenue ?? 0
+  let projected: CurrencyAmounts = { ...(last.revenue ?? {}) }
   for (let i = 1; i <= monthsAhead; i++) {
-    projected = Math.max(0, projected + avgDelta)
+    const next: CurrencyAmounts = {}
+    for (const code of codes) {
+      next[code] = Math.max(0, (projected[code] ?? 0) + (avgDeltaByCode.get(code) ?? 0))
+    }
+    projected = next
     points.push({
       label: format(addMonths(new Date(), i), "MMM"),
       revenue: null,
-      forecastRevenue: Math.round(projected),
+      forecastRevenue: roundAmounts(projected),
     })
   }
   return points
@@ -197,20 +247,25 @@ export async function getBusinessInsights(): Promise<BusinessInsights> {
   const threeMonthsAgo = format(startOfMonth(subMonths(new Date(), 2)), "yyyy-MM-dd")
   const { data: expenseRows, error: expensesError } = await supabase
     .from("expenses")
-    .select("amount, date")
+    .select("amount, date, currency")
     .gte("date", threeMonthsAgo)
   if (expensesError) throw expensesError
 
-  const burnRateMonthly = average([0, 1, 2].map((i) => {
+  // Per-currency average over the trailing 3 months — a month with no expenses
+  // in a given currency counts as 0 for that month, same as the blended version did.
+  const monthlySums = [0, 1, 2].map((i) => {
     const monthDate = subMonths(new Date(), i)
-    return (expenseRows ?? [])
-      .filter(
-        (r) =>
-          new Date(r.date).getMonth() === monthDate.getMonth() &&
-          new Date(r.date).getFullYear() === monthDate.getFullYear(),
-      )
-      .reduce((acc, r) => acc + Number(r.amount), 0)
-  }))
+    const monthRows = (expenseRows ?? []).filter(
+      (r) =>
+        new Date(r.date).getMonth() === monthDate.getMonth() &&
+        new Date(r.date).getFullYear() === monthDate.getFullYear(),
+    )
+    return sumByCurrency(monthRows, (r) => Number(r.amount), (r) => r.currency)
+  })
+  const burnRateMonthly: CurrencyAmounts = {}
+  for (const code of currenciesIn(...monthlySums)) {
+    burnRateMonthly[code] = average(monthlySums.map((m) => m[code] ?? 0))
+  }
 
   const thisMonthStart = format(startOfMonth(new Date()), "yyyy-MM-dd")
   const lastMonthStart = format(startOfMonth(subMonths(new Date(), 1)), "yyyy-MM-dd")

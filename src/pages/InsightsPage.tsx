@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { InfoTooltip } from "@/components/shared/InfoTooltip"
-import { formatCurrency } from "@/lib/currency"
+import { currenciesIn, formatCurrency, formatCurrencyAmounts, totalOf } from "@/lib/currency"
+import type { CurrencyCode } from "@/types/database"
 import { cn } from "@/lib/utils"
 import { getMonthlyTrend } from "@/features/dashboard/api"
 import {
@@ -33,7 +34,11 @@ function healthClass(score: number) {
 
 const clientColumns: ColumnDef<TopClientRow, unknown>[] = [
   { accessorKey: "client_name", header: "Client" },
-  { accessorKey: "revenue", header: "YTD Revenue", cell: ({ row }) => formatCurrency(row.original.revenue) },
+  {
+    accessorKey: "revenue",
+    header: "YTD Revenue",
+    cell: ({ row }) => formatCurrencyAmounts(row.original.revenue),
+  },
   {
     accessorKey: "healthScore",
     header: "Health Score",
@@ -48,14 +53,14 @@ const clientColumns: ColumnDef<TopClientRow, unknown>[] = [
 const projectColumns: ColumnDef<ProjectProfitabilityRow, unknown>[] = [
   { accessorKey: "project_name", header: "Project" },
   { accessorKey: "client_name", header: "Client", cell: ({ row }) => row.original.client_name ?? "—" },
-  { accessorKey: "revenue", header: "Revenue", cell: ({ row }) => formatCurrency(row.original.revenue) },
-  { accessorKey: "expenses", header: "Expenses", cell: ({ row }) => formatCurrency(row.original.expenses) },
+  { accessorKey: "revenue", header: "Revenue", cell: ({ row }) => formatCurrencyAmounts(row.original.revenue) },
+  { accessorKey: "expenses", header: "Expenses", cell: ({ row }) => formatCurrencyAmounts(row.original.expenses) },
   {
     accessorKey: "profit",
     header: "Profit",
     cell: ({ row }) => (
-      <span className={row.original.profit >= 0 ? "text-success" : "text-destructive"}>
-        {formatCurrency(row.original.profit)}
+      <span className={totalOf(row.original.profit) >= 0 ? "text-success" : "text-destructive"}>
+        {formatCurrencyAmounts(row.original.profit)}
       </span>
     ),
   },
@@ -115,6 +120,12 @@ export default function InsightsPage() {
   }, [])
 
   const nextMonthForecast = forecast.find((p) => p.revenue === null)?.forecastRevenue ?? null
+  const forecastCurrenciesFound = currenciesIn(
+    ...forecast.map((p) => p.revenue ?? {}),
+    ...forecast.map((p) => p.forecastRevenue ?? {}),
+  )
+  const forecastCurrencies =
+    forecastCurrenciesFound.length > 0 ? forecastCurrenciesFound : (["USD"] as CurrencyCode[])
 
   if (loading || !insights) {
     return (
@@ -142,7 +153,7 @@ export default function InsightsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <StatTile icon={Flame} label="Monthly Burn Rate" value={formatCurrency(insights.burnRateMonthly)} />
+        <StatTile icon={Flame} label="Monthly Burn Rate" value={formatCurrencyAmounts(insights.burnRateMonthly)} />
         <StatTile
           icon={Activity}
           label="Client Retention"
@@ -151,7 +162,7 @@ export default function InsightsPage() {
         <StatTile
           icon={TrendingUp}
           label="Next Month Forecast"
-          value={nextMonthForecast === null ? "—" : formatCurrency(nextMonthForecast)}
+          value={nextMonthForecast === null ? "—" : formatCurrencyAmounts(nextMonthForecast)}
         />
       </div>
 
@@ -159,34 +170,50 @@ export default function InsightsPage() {
         <CardHeader>
           <CardTitle className="text-base">Revenue Forecast</CardTitle>
         </CardHeader>
-        <CardContent className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={forecast} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
-              <YAxis tickLine={false} axisLine={false} fontSize={12} width={48} />
-              <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-              <Line
-                type="monotone"
-                dataKey="revenue"
-                name="Revenue"
-                stroke="var(--chart-1)"
-                strokeWidth={2}
-                connectNulls={false}
-                dot={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="forecastRevenue"
-                name="Forecast"
-                stroke="var(--analytics)"
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                connectNulls
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+        <CardContent className={forecastCurrencies.length > 1 ? "space-y-4" : undefined}>
+          {forecastCurrencies.map((code) => (
+            <div key={code}>
+              {forecastCurrencies.length > 1 && (
+                <p className="mb-1 text-xs font-medium text-muted-foreground">{code}</p>
+              )}
+              <div style={{ height: forecastCurrencies.length > 1 ? 288 / forecastCurrencies.length : 288 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={forecast.map((p) => ({
+                      label: p.label,
+                      revenue: p.revenue ? (p.revenue[code] ?? null) : null,
+                      forecastRevenue: p.forecastRevenue ? (p.forecastRevenue[code] ?? null) : null,
+                    }))}
+                    margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
+                    <YAxis tickLine={false} axisLine={false} fontSize={12} width={48} />
+                    <Tooltip formatter={(value) => formatCurrency(Number(value), code)} />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      name="Revenue"
+                      stroke="var(--chart-1)"
+                      strokeWidth={2}
+                      connectNulls={false}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="forecastRevenue"
+                      name="Forecast"
+                      stroke="var(--analytics)"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      connectNulls
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ))}
         </CardContent>
       </Card>
 

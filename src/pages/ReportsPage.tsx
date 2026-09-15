@@ -17,7 +17,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DatePicker } from "@/components/shared/DatePicker"
 import { DataTable } from "@/components/shared/DataTable"
 import { InfoTooltip } from "@/components/shared/InfoTooltip"
-import { formatCurrency } from "@/lib/currency"
+import { currenciesIn, formatCurrency, formatCurrencyAmounts } from "@/lib/currency"
+import type { CurrencyCode } from "@/types/database"
 import { formatDuration } from "@/lib/duration"
 import { buildChartSeries, getReportFixedFeeRevenue, getReportRows, summarize, toReportRows } from "@/features/reports/api"
 import type { ReportChartPoint, ReportPreset, ReportRow, ReportSummary } from "@/features/reports/types"
@@ -83,6 +84,8 @@ export default function ReportsPage() {
   }, [preset, customFrom, customTo])
 
   const rangeLabel = `${format(range.from, "MMM d, yyyy")} – ${format(range.to, "MMM d, yyyy")}`
+  const revenueCurrenciesFound = currenciesIn(...chart.map((c) => c.revenue))
+  const revenueCurrencies = revenueCurrenciesFound.length > 0 ? revenueCurrenciesFound : (["USD"] as CurrencyCode[])
 
   useEffect(() => {
     let active = true
@@ -172,7 +175,7 @@ export default function ReportsPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
               </CardHeader>
-              <CardContent className="text-2xl font-semibold">{formatCurrency(summary.totalRevenue)}</CardContent>
+              <CardContent className="text-2xl font-semibold">{formatCurrencyAmounts(summary.totalRevenue)}</CardContent>
             </Card>
             <Card className="border-l-4 border-l-violet-500">
               <CardHeader className="pb-2">
@@ -209,22 +212,37 @@ export default function ReportsPage() {
               <CardHeader>
                 <CardTitle className="text-base">Revenue</CardTitle>
               </CardHeader>
-              <CardContent className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chart}>
-                    <defs>
-                      <linearGradient id="reportRevenueFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
-                    <YAxis tickLine={false} axisLine={false} fontSize={12} width={48} />
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                    <Area type="monotone" dataKey="revenue" stroke="var(--chart-1)" fill="url(#reportRevenueFill)" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <CardContent className={revenueCurrencies.length > 1 ? "space-y-4" : undefined}>
+                {revenueCurrencies.map((code) => (
+                  <div key={code}>
+                    {revenueCurrencies.length > 1 && (
+                      <p className="mb-1 text-xs font-medium text-muted-foreground">{code}</p>
+                    )}
+                    <div style={{ height: revenueCurrencies.length > 1 ? 256 / revenueCurrencies.length : 256 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chart.map((c) => ({ label: c.label, revenue: c.revenue[code] ?? 0 }))}>
+                          <defs>
+                            <linearGradient id={`reportRevenueFill-${code}`} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.4} />
+                              <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
+                          <YAxis tickLine={false} axisLine={false} fontSize={12} width={48} />
+                          <Tooltip formatter={(value) => formatCurrency(Number(value), code)} />
+                          <Area
+                            type="monotone"
+                            dataKey="revenue"
+                            stroke="var(--chart-1)"
+                            fill={`url(#reportRevenueFill-${code})`}
+                            strokeWidth={2}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </div>

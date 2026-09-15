@@ -147,7 +147,7 @@ async function getFlatFeeItemFor(
  * than never (per-task math is always $0 for a fixed-price project).
  */
 export async function listFixedFeeRevenue(fromIssueDate?: string): Promise<FixedFeeRevenueRow[]> {
-  let invoiceQuery = supabase.from("invoices").select("id, issue_date, client_id, project_id")
+  let invoiceQuery = supabase.from("invoices").select("id, issue_date, client_id, project_id, currency")
   if (fromIssueDate) invoiceQuery = invoiceQuery.gte("issue_date", fromIssueDate)
   const { data: invoices, error: invoicesError } = await invoiceQuery
   if (invoicesError) throw invoicesError
@@ -174,6 +174,7 @@ export async function listFixedFeeRevenue(fromIssueDate?: string): Promise<Fixed
         issue_date: invoice.issue_date,
         client_id: invoice.client_id,
         project_id: invoice.project_id,
+        currency: invoice.currency,
       },
     ]
   })

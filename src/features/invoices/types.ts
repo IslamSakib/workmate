@@ -1,4 +1,4 @@
-import type { Tables } from "@/types/database"
+import type { CurrencyCode, Tables } from "@/types/database"
 
 export type Invoice = Tables<"invoices">
 export type InvoiceItem = Tables<"invoice_items">
@@ -30,6 +30,7 @@ export interface FixedFeeRevenueRow {
   issue_date: string
   client_id: string | null
   project_id: string | null
+  currency: CurrencyCode
 }
 
 /** Stable id for the synthetic flat-fee row in the invoice form's task list. */

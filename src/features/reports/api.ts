@@ -1,6 +1,8 @@
 import { differenceInCalendarDays, eachDayOfInterval, eachMonthOfInterval, format } from "date-fns"
 import { supabase } from "@/lib/supabaseClient"
 import { listFixedFeeRevenue } from "@/features/invoices/api"
+import { sumByCurrency, addCurrencyAmounts, roundAmounts } from "@/lib/currency"
+import type { CurrencyCode } from "@/types/database"
 import type { FixedFeeRevenueRow } from "@/features/invoices/types"
 import type { ReportChartPoint, ReportRow, ReportSummary } from "./types"
 
@@ -12,15 +14,24 @@ interface RawTaskRow {
   billable: boolean
   project_id: string | null
   client_id: string | null
-  projects: { project_name: string; hourly_rate: number | null } | null
+  projects: { project_name: string; hourly_rate: number | null; currency: CurrencyCode } | null
   clients: { client_name: string } | null
+}
+
+/** A task bills in its own project's currency — defaults to USD for tasks with no project. */
+function currencyFor(t: RawTaskRow): CurrencyCode {
+  return t.projects?.currency ?? "USD"
+}
+
+function revenueFor(t: RawTaskRow): number {
+  return t.billable ? (t.duration_seconds / 3600) * (t.projects?.hourly_rate ?? 0) : 0
 }
 
 export async function getReportRows(from: Date, to: Date): Promise<RawTaskRow[]> {
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, task_name, date, duration_seconds, billable, project_id, client_id, projects(project_name, hourly_rate), clients(client_name)",
+      "id, task_name, date, duration_seconds, billable, project_id, client_id, projects(project_name, hourly_rate, currency), clients(client_name)",
     )
     .gte("date", format(from, "yyyy-MM-dd"))
     .lte("date", format(to, "yyyy-MM-dd"))
@@ -55,14 +66,16 @@ export function toReportRows(raw: RawTaskRow[]): ReportRow[] {
 
 export function summarize(raw: RawTaskRow[], flatFees: FixedFeeRevenueRow[] = []): ReportSummary {
   const totalSeconds = raw.reduce((acc, t) => acc + t.duration_seconds, 0)
-  const taskRevenue = raw.reduce(
-    (acc, t) => acc + (t.billable ? (t.duration_seconds / 3600) * (t.projects?.hourly_rate ?? 0) : 0),
-    0,
-  )
-  const flatFeeRevenue = flatFees.reduce((acc, f) => acc + f.amount, 0)
+  const taskRevenue = sumByCurrency(raw, revenueFor, currencyFor)
+  const flatFeeRevenue = sumByCurrency(flatFees, (f) => f.amount, (f) => f.currency)
   const projectCount = new Set(raw.map((t) => t.project_id).filter(Boolean)).size
   const clientCount = new Set(raw.map((t) => t.client_id).filter(Boolean)).size
-  return { totalSeconds, totalRevenue: taskRevenue + flatFeeRevenue, projectCount, clientCount }
+  return {
+    totalSeconds,
+    totalRevenue: addCurrencyAmounts(taskRevenue, flatFeeRevenue),
+    projectCount,
+    clientCount,
+  }
 }
 
 export function buildChartSeries(
@@ -79,17 +92,16 @@ export function buildChartSeries(
       const monthKey = format(month, "yyyy-MM")
       const monthTasks = raw.filter((t) => t.date.startsWith(monthKey))
       const hours = monthTasks.reduce((acc, t) => acc + t.duration_seconds / 3600, 0)
-      const taskRevenue = monthTasks.reduce(
-        (acc, t) => acc + (t.billable ? (t.duration_seconds / 3600) * (t.projects?.hourly_rate ?? 0) : 0),
-        0,
+      const taskRevenue = sumByCurrency(monthTasks, revenueFor, currencyFor)
+      const flatFeeRevenue = sumByCurrency(
+        flatFees.filter((f) => f.issue_date.startsWith(monthKey)),
+        (f) => f.amount,
+        (f) => f.currency,
       )
-      const flatFeeRevenue = flatFees
-        .filter((f) => f.issue_date.startsWith(monthKey))
-        .reduce((acc, f) => acc + f.amount, 0)
       return {
         label: format(month, "MMM"),
         hours: Math.round(hours * 10) / 10,
-        revenue: Math.round(taskRevenue + flatFeeRevenue),
+        revenue: roundAmounts(addCurrencyAmounts(taskRevenue, flatFeeRevenue)),
       }
     })
   }
@@ -99,15 +111,16 @@ export function buildChartSeries(
     const dayKey = format(day, "yyyy-MM-dd")
     const dayTasks = raw.filter((t) => t.date === dayKey)
     const hours = dayTasks.reduce((acc, t) => acc + t.duration_seconds / 3600, 0)
-    const taskRevenue = dayTasks.reduce(
-      (acc, t) => acc + (t.billable ? (t.duration_seconds / 3600) * (t.projects?.hourly_rate ?? 0) : 0),
-      0,
+    const taskRevenue = sumByCurrency(dayTasks, revenueFor, currencyFor)
+    const flatFeeRevenue = sumByCurrency(
+      flatFees.filter((f) => f.issue_date === dayKey),
+      (f) => f.amount,
+      (f) => f.currency,
     )
-    const flatFeeRevenue = flatFees.filter((f) => f.issue_date === dayKey).reduce((acc, f) => acc + f.amount, 0)
     return {
       label: format(day, "MMM d"),
       hours: Math.round(hours * 10) / 10,
-      revenue: Math.round(taskRevenue + flatFeeRevenue),
+      revenue: roundAmounts(addCurrencyAmounts(taskRevenue, flatFeeRevenue)),
     }
   })
 }

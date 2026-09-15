@@ -1,12 +1,16 @@
+import type { CurrencyAmounts } from "@/lib/currency"
+import type { CurrencyCode } from "@/types/database"
+
 export interface DashboardStats {
   hoursToday: number
   hoursWeek: number
   hoursMonth: number
   hoursYear: number
-  revenueToday: number
-  revenueWeek: number
-  revenueMonth: number
-  revenueYear: number
+  /** Grouped per currency — a freelancer account can mix currencies across projects. */
+  revenueToday: CurrencyAmounts
+  revenueWeek: CurrencyAmounts
+  revenueMonth: CurrencyAmounts
+  revenueYear: CurrencyAmounts
   activeProjects: number
   totalClients: number
   totalTasks: number
@@ -15,7 +19,7 @@ export interface DashboardStats {
 }
 
 export interface OutstandingInvoices {
-  total: number
+  total: CurrencyAmounts
   count: number
 }
 
@@ -24,6 +28,7 @@ export interface UpcomingDeadline {
   invoice_number: string
   due_date: string
   total: number
+  currency: CurrencyCode
   status: string
   client_name: string | null
   overdue: boolean
@@ -40,29 +45,32 @@ export interface RetainerUsageRow {
   used_hours: number
   included_hours: number
   overage_amount: number
+  currency: CurrencyCode
 }
 
 export interface RetainerMetrics {
   activeRetainerCount: number
-  totalMonthlyFee: number
-  totalOverageRevenue: number
+  totalMonthlyFee: CurrencyAmounts
+  totalOverageRevenue: CurrencyAmounts
   usage: RetainerUsageRow[]
 }
 
 export interface TrendPoint {
   label: string
   hours: number
-  revenue: number
-  expenses?: number
-  profit?: number
+  /** Grouped per currency — see DashboardStats. */
+  revenue: CurrencyAmounts
+  expenses?: CurrencyAmounts
+  profit?: CurrencyAmounts
 }
 
 export interface ProfitMetrics {
-  expensesMonth: number
-  expensesYear: number
-  profitMonth: number
-  profitYear: number
-  /** null when revenueMonth is 0, to avoid a meaningless divide-by-zero percentage. */
+  expensesMonth: CurrencyAmounts
+  expensesYear: CurrencyAmounts
+  profitMonth: CurrencyAmounts
+  profitYear: CurrencyAmounts
+  /** null when revenue is 0 or more than one currency is in play this month
+   * (a blended margin % across currencies would be meaningless). */
   profitMarginMonth: number | null
 }
 

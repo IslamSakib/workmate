@@ -1,5 +1,5 @@
 import { createPdfContext, drawDivider, drawKeyValueRow, drawTable, drawTitle, downloadPdf } from "./shared"
-import { formatCurrency } from "@/lib/currency"
+import { formatCurrencyAmounts, type CurrencyAmounts } from "@/lib/currency"
 import { formatDuration } from "@/lib/duration"
 
 export interface ReportPdfRow {
@@ -14,7 +14,7 @@ export interface ReportPdfRow {
 export interface ReportPdfData {
   rangeLabel: string
   totalSeconds: number
-  totalRevenue: number
+  totalRevenue: CurrencyAmounts
   projectCount: number
   clientCount: number
   rows: ReportPdfRow[]
@@ -26,7 +26,7 @@ export async function generateReportPdf(data: ReportPdfData) {
   drawTitle(ctx, "Time & Revenue Report", data.rangeLabel)
 
   drawKeyValueRow(ctx, "Total duration", formatDuration(data.totalSeconds))
-  drawKeyValueRow(ctx, "Total revenue", formatCurrency(data.totalRevenue))
+  drawKeyValueRow(ctx, "Total revenue", formatCurrencyAmounts(data.totalRevenue))
   drawKeyValueRow(ctx, "Projects", String(data.projectCount))
   drawKeyValueRow(ctx, "Clients", String(data.clientCount))
   ctx.cursorY -= 8

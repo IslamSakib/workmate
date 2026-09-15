@@ -10,6 +10,8 @@ import {
 import { supabase } from "@/lib/supabaseClient"
 import { listRetainers, getRetainerUsage } from "@/features/retainers/api"
 import { listFixedFeeRevenue } from "@/features/invoices/api"
+import { addCurrencyAmounts, subtractCurrencyAmounts, sumByCurrency, roundAmounts } from "@/lib/currency"
+import type { CurrencyCode } from "@/types/database"
 import type { FixedFeeRevenueRow } from "@/features/invoices/types"
 import type {
   DashboardStats,
@@ -32,7 +34,7 @@ export interface TaskWithProject {
   created_at: string
   project_id: string | null
   client_id: string | null
-  projects: { project_name: string; hourly_rate: number | null } | null
+  projects: { project_name: string; hourly_rate: number | null; currency: CurrencyCode } | null
   clients: { client_name: string } | null
 }
 
@@ -41,7 +43,7 @@ export async function getYearTasks(): Promise<TaskWithProject[]> {
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, task_name, date, duration_seconds, billable, created_at, project_id, client_id, projects(project_name, hourly_rate), clients(client_name)",
+      "id, task_name, date, duration_seconds, billable, created_at, project_id, client_id, projects(project_name, hourly_rate, currency), clients(client_name)",
     )
     .gte("date", format(yearStart, "yyyy-MM-dd"))
     .order("date", { ascending: false })
@@ -54,6 +56,11 @@ export function revenueFor(task: TaskWithProject) {
   if (!task.billable) return 0
   const rate = task.projects?.hourly_rate ?? 0
   return (task.duration_seconds / 3600) * rate
+}
+
+/** A task bills in its own project's currency — defaults to USD for tasks with no project. */
+export function currencyFor(task: TaskWithProject): CurrencyCode {
+  return task.projects?.currency ?? "USD"
 }
 
 /**
@@ -72,11 +79,13 @@ function sumWithin(tasks: TaskWithProject[], flatFees: FixedFeeRevenueRow[], fro
   const billableHours = filtered
     .filter((t) => t.billable)
     .reduce((acc, t) => acc + t.duration_seconds / 3600, 0)
-  const taskRevenue = filtered.reduce((acc, t) => acc + revenueFor(t), 0)
-  const flatFeeRevenue = flatFees
-    .filter((f) => isWithinInterval(new Date(f.issue_date), { start: from, end: now }))
-    .reduce((acc, f) => acc + f.amount, 0)
-  return { hours, billableHours, revenue: taskRevenue + flatFeeRevenue }
+  const taskRevenue = sumByCurrency(filtered, revenueFor, currencyFor)
+  const flatFeeRevenue = sumByCurrency(
+    flatFees.filter((f) => isWithinInterval(new Date(f.issue_date), { start: from, end: now })),
+    (f) => f.amount,
+    (f) => f.currency,
+  )
+  return { hours, billableHours, revenue: addCurrencyAmounts(taskRevenue, flatFeeRevenue) }
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
@@ -116,25 +125,37 @@ export async function getProfitMetrics(stats: DashboardStats): Promise<ProfitMet
   const monthStart = startOfMonth(new Date())
   const { data, error } = await supabase
     .from("expenses")
-    .select("amount, date")
+    .select("amount, date, currency")
     .gte("date", format(yearStart, "yyyy-MM-dd"))
   if (error) throw error
 
   const rows = data ?? []
-  const expensesYear = rows.reduce((acc, r) => acc + Number(r.amount), 0)
-  const expensesMonth = rows
-    .filter((r) => new Date(r.date) >= monthStart)
-    .reduce((acc, r) => acc + Number(r.amount), 0)
+  const expensesYear = sumByCurrency(rows, (r) => Number(r.amount), (r) => r.currency)
+  const expensesMonth = sumByCurrency(
+    rows.filter((r) => new Date(r.date) >= monthStart),
+    (r) => Number(r.amount),
+    (r) => r.currency,
+  )
 
-  const profitMonth = stats.revenueMonth - expensesMonth
-  const profitYear = stats.revenueYear - expensesYear
+  const profitMonth = subtractCurrencyAmounts(stats.revenueMonth, expensesMonth)
+  const profitYear = subtractCurrencyAmounts(stats.revenueYear, expensesYear)
+
+  // A margin % only means something for a single currency — blending
+  // differently-scaled currencies into one ratio would be arbitrary, so it's
+  // only shown when exactly one currency is in play this month (same
+  // "null when meaningless" pattern as the zero-revenue case below).
+  const monthCurrencies = Object.keys(stats.revenueMonth) as CurrencyCode[]
+  const singleCurrency = monthCurrencies.length === 1 ? monthCurrencies[0] : null
+  const revenueMonthSingle = singleCurrency ? (stats.revenueMonth[singleCurrency] ?? 0) : 0
+  const profitMonthSingle = singleCurrency ? (profitMonth[singleCurrency] ?? 0) : 0
 
   return {
     expensesMonth,
     expensesYear,
     profitMonth,
     profitYear,
-    profitMarginMonth: stats.revenueMonth > 0 ? (profitMonth / stats.revenueMonth) * 100 : null,
+    profitMarginMonth:
+      singleCurrency && revenueMonthSingle > 0 ? (profitMonthSingle / revenueMonthSingle) * 100 : null,
   }
 }
 
@@ -151,7 +172,7 @@ export async function getProfitTrend(revenueTrend: TrendPoint[]): Promise<TrendP
   const yearAgo = subMonths(new Date(), revenueTrend.length - 1)
   const { data, error } = await supabase
     .from("expenses")
-    .select("amount, date")
+    .select("amount, date, currency")
     .gte("date", format(startOfMonth(yearAgo), "yyyy-MM-dd"))
   if (error) throw error
 
@@ -160,27 +181,33 @@ export async function getProfitTrend(revenueTrend: TrendPoint[]): Promise<TrendP
 
   return revenueTrend.map((point, i) => {
     const monthDate = subMonths(now, revenueTrend.length - 1 - i)
-    const expenses = rows
-      .filter(
+    const expenses = sumByCurrency(
+      rows.filter(
         (r) =>
           new Date(r.date).getMonth() === monthDate.getMonth() &&
           new Date(r.date).getFullYear() === monthDate.getFullYear(),
-      )
-      .reduce((acc, r) => acc + Number(r.amount), 0)
-    return { ...point, expenses: Math.round(expenses), profit: Math.round(point.revenue - expenses) }
+      ),
+      (r) => Number(r.amount),
+      (r) => r.currency,
+    )
+    return {
+      ...point,
+      expenses: roundAmounts(expenses),
+      profit: roundAmounts(subtractCurrencyAmounts(point.revenue, expenses)),
+    }
   })
 }
 
 export async function getOutstandingInvoices(): Promise<OutstandingInvoices> {
   const { data, error } = await supabase
     .from("invoices")
-    .select("total")
+    .select("total, currency")
     .in("status", ["sent", "overdue"])
 
   if (error) throw error
   const rows = data ?? []
   return {
-    total: rows.reduce((acc, r) => acc + Number(r.total), 0),
+    total: sumByCurrency(rows, (r) => Number(r.total), (r) => r.currency),
     count: rows.length,
   }
 }
@@ -192,7 +219,7 @@ export async function getUpcomingDeadlines(withinDays = 7): Promise<UpcomingDead
 
   const { data, error } = await supabase
     .from("invoices")
-    .select("id, invoice_number, due_date, total, status, clients(client_name)")
+    .select("id, invoice_number, due_date, total, currency, status, clients(client_name)")
     .not("due_date", "is", null)
     .neq("status", "paid")
     .lte("due_date", format(horizon, "yyyy-MM-dd"))
@@ -205,6 +232,7 @@ export async function getUpcomingDeadlines(withinDays = 7): Promise<UpcomingDead
     invoice_number: string
     due_date: string
     total: number
+    currency: CurrencyCode
     status: string
     clients: { client_name: string } | null
   }[]
@@ -214,6 +242,7 @@ export async function getUpcomingDeadlines(withinDays = 7): Promise<UpcomingDead
     invoice_number: r.invoice_number,
     due_date: r.due_date,
     total: Number(r.total),
+    currency: r.currency,
     status: r.status,
     client_name: r.clients?.client_name ?? null,
     overdue: new Date(r.due_date) < today,
@@ -225,22 +254,27 @@ export async function getRetainerMetrics(): Promise<RetainerMetrics> {
   const active = retainers.filter((r) => r.active)
   const usage = await getRetainerUsage(active)
 
-  let totalOverageRevenue = 0
   const usageRows = active.map((r) => {
     const u = usage.get(r.id)
-    totalOverageRevenue += u?.overage_amount ?? 0
     return {
       id: r.id,
       client_name: r.clients?.client_name ?? "—",
       used_hours: u?.used_hours ?? 0,
       included_hours: r.included_hours,
       overage_amount: u?.overage_amount ?? 0,
+      currency: r.currency,
     }
   })
 
+  const totalOverageRevenue = sumByCurrency(
+    usageRows.filter((r) => r.overage_amount > 0),
+    (r) => r.overage_amount,
+    (r) => r.currency,
+  )
+
   return {
     activeRetainerCount: active.length,
-    totalMonthlyFee: active.reduce((acc, r) => acc + r.monthly_fee, 0),
+    totalMonthlyFee: sumByCurrency(active, (r) => r.monthly_fee, (r) => r.currency),
     totalOverageRevenue,
     usage: usageRows,
   }
@@ -258,8 +292,15 @@ export function getGrowthDeltas(trend: TrendPoint[]): GrowthDeltas {
 
   const pctChange = (from: number, to: number) => (from > 0 ? ((to - from) / from) * 100 : null)
 
+  // Only meaningful when both months are in the same single currency — a %
+  // change blended across currencies of different scale would be arbitrary
+  // (same "hide when ambiguous" rule as profitMarginMonth above).
+  const currencies = new Set([...Object.keys(latest.revenue), ...Object.keys(previous.revenue)])
+  if (currencies.size !== 1) return { monthRevenueGrowthPct: null }
+  const [code] = currencies as unknown as [CurrencyCode]
+
   return {
-    monthRevenueGrowthPct: pctChange(previous.revenue, latest.revenue),
+    monthRevenueGrowthPct: pctChange(previous.revenue[code] ?? 0, latest.revenue[code] ?? 0),
   }
 }
 
@@ -276,11 +317,17 @@ export async function getMonthlyTrend(): Promise<TrendPoint[]> {
     }
     const monthTasks = tasks.filter((t) => inMonth(t.date))
     const hours = monthTasks.reduce((acc, t) => acc + t.duration_seconds / 3600, 0)
-    const taskRevenue = monthTasks.reduce((acc, t) => acc + revenueFor(t), 0)
-    const flatFeeRevenue = flatFees
-      .filter((f) => inMonth(f.issue_date))
-      .reduce((acc, f) => acc + f.amount, 0)
-    months.push({ label, hours: Math.round(hours * 10) / 10, revenue: Math.round(taskRevenue + flatFeeRevenue) })
+    const taskRevenue = sumByCurrency(monthTasks, revenueFor, currencyFor)
+    const flatFeeRevenue = sumByCurrency(
+      flatFees.filter((f) => inMonth(f.issue_date)),
+      (f) => f.amount,
+      (f) => f.currency,
+    )
+    months.push({
+      label,
+      hours: Math.round(hours * 10) / 10,
+      revenue: roundAmounts(addCurrencyAmounts(taskRevenue, flatFeeRevenue)),
+    })
   }
 
   return months

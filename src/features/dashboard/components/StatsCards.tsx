@@ -10,7 +10,7 @@ import {
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { formatCurrency } from "@/lib/currency"
+import { formatCurrencyAmounts, totalOf } from "@/lib/currency"
 import type { DashboardStats, GrowthDeltas, OutstandingInvoices, ProfitMetrics } from "../types"
 
 const TONES = {
@@ -97,15 +97,15 @@ export function StatsCards({
       <StatCard
         icon={DollarSign}
         label="Revenue This Month"
-        value={formatCurrency(stats.revenueMonth)}
+        value={formatCurrencyAmounts(stats.revenueMonth)}
         tone="emerald"
         footer={<DeltaBadge pct={growth.monthRevenueGrowthPct} />}
       />
       <StatCard
         icon={PiggyBank}
         label="Profit This Month"
-        value={formatCurrency(profit.profitMonth)}
-        tone={profit.profitMonth >= 0 ? "success" : "destructive"}
+        value={formatCurrencyAmounts(profit.profitMonth)}
+        tone={totalOf(profit.profitMonth) >= 0 ? "success" : "destructive"}
         footer={
           profit.profitMarginMonth !== null ? (
             <span className={cn("text-xs font-medium", marginTextTone(profit.profitMarginMonth))}>
@@ -117,7 +117,7 @@ export function StatsCards({
       <StatCard
         icon={FileWarning}
         label="Outstanding Invoices"
-        value={`${formatCurrency(outstanding.total)} (${outstanding.count})`}
+        value={`${formatCurrencyAmounts(outstanding.total)} (${outstanding.count})`}
         tone="warning"
       />
       <StatCard icon={Gauge} label="Utilization Rate" value={`${stats.utilizationRate.toFixed(0)}%`} tone="info" />

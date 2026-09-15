@@ -35,7 +35,7 @@ export function UpcomingDeadlines({ deadlines }: { deadlines: UpcomingDeadline[]
               </p>
             </div>
             <div className="flex flex-col items-end gap-1">
-              <span className="font-medium">{formatCurrency(d.total)}</span>
+              <span className="font-medium">{formatCurrency(d.total, d.currency)}</span>
               <Badge variant={d.overdue ? "destructive" : "outline"} className="text-xs">
                 {d.overdue ? "Overdue" : "Upcoming"}
               </Badge>

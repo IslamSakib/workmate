@@ -1,7 +1,7 @@
 import { Repeat } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { formatCurrency } from "@/lib/currency"
+import { formatCurrency, formatCurrencyAmounts } from "@/lib/currency"
 import { cn } from "@/lib/utils"
 import type { RetainerMetrics } from "../types"
 
@@ -32,15 +32,15 @@ export function RetainerUsageWidget({ retainers }: { retainers: RetainerMetrics 
               <Progress value={pct} className={cn(overage && "bg-destructive/20 [&>div]:bg-destructive")} />
               {overage && (
                 <p className="text-xs text-warning">
-                  +{formatCurrency(r.overage_amount)} overage this month
+                  +{formatCurrency(r.overage_amount, r.currency)} overage this month
                 </p>
               )}
             </div>
           )
         })}
-        {retainers.totalOverageRevenue > 0 && (
+        {Object.keys(retainers.totalOverageRevenue).length > 0 && (
           <p className="border-t pt-2 text-sm font-medium text-warning">
-            Total overage revenue: {formatCurrency(retainers.totalOverageRevenue)}
+            Total overage revenue: {formatCurrencyAmounts(retainers.totalOverageRevenue)}
           </p>
         )}
       </CardContent>
