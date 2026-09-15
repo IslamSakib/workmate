@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select"
 import { CURRENCIES } from "@/lib/currency"
 import { AttachmentsPanel } from "@/features/attachments/components/AttachmentsPanel"
+import { PIPELINE_STAGES } from "../pipeline"
 import { clientSchema, type ClientInput } from "../schema"
 import type { Client } from "../types"
 
@@ -36,7 +37,7 @@ export function ClientFormDialog({ open, onOpenChange, client, onSubmit }: Clien
     formState: { errors, isSubmitting },
   } = useForm<ClientInput>({
     resolver: zodResolver(clientSchema),
-    defaultValues: { currency: "USD" },
+    defaultValues: { currency: "USD", pipeline_stage: "lead" },
   })
 
   useEffect(() => {
@@ -51,8 +52,9 @@ export function ClientFormDialog({ open, onOpenChange, client, onSubmit }: Clien
               currency: client.currency,
               country: client.country ?? "",
               notes: client.notes ?? "",
+              pipeline_stage: client.pipeline_stage,
             }
-          : { currency: "USD" },
+          : { currency: "USD", pipeline_stage: "lead" },
       )
     }
   }, [open, client, reset])
@@ -113,6 +115,24 @@ export function ClientFormDialog({ open, onOpenChange, client, onSubmit }: Clien
           <div className="space-y-2">
             <Label htmlFor="country">Country</Label>
             <Input id="country" {...register("country")} />
+          </div>
+          <div className="space-y-2">
+            <Label>Pipeline stage</Label>
+            <Select
+              value={watch("pipeline_stage")}
+              onValueChange={(v) => setValue("pipeline_stage", v as ClientInput["pipeline_stage"])}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PIPELINE_STAGES.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div className="space-y-2">

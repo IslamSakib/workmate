@@ -28,7 +28,7 @@ No remaining gap. `tsc -b`, `eslint`, and `vite build` all pass clean throughout
 
 ## P2 — Medium effort, still single-user / no-backend friendly
 
-5. **Lightweight CRM pipeline on Clients** — add `pipeline_stage` enum (`lead → contacted → proposal_sent → won → lost`) to `clients`, plus a simple status-column board view (no drag-and-drop library needed at first — click-to-advance is enough; add `@dnd-kit` later only if the click version feels inadequate).
+5. ✅ **Lightweight CRM pipeline on Clients** (done 2026-09-15, migration `0014_client_pipeline.sql` already run) — `clients.pipeline_stage` enum (`lead → contacted → proposal_sent → won → lost`, existing clients backfilled to `won`), a stage badge in the Clients table, and a `Table`/`Pipeline` tab toggle showing a 5-column board (`ClientPipelineBoard`) with a per-card stage dropdown — click-to-change, no `@dnd-kit` added since that felt unnecessary once built.
 6. **Proposals** — new `proposals` feature: a lightweight PDF doc (reuse `src/lib/pdf/shared.ts` layout helpers like invoices already do) with a public accept link (same token-route pattern as #4). Accepting can optionally auto-create a Project, closing the "proposal → project → invoice" loop every competitor above leads with.
 7. **Calendar view** — month view plotting task due dates, invoice due dates, retainer renewal dates. `date-fns` and `react-day-picker` are already dependencies — no new library needed.
 

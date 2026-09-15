@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabaseClient"
 import { useAuthStore } from "@/store/authStore"
+import type { ClientPipelineStage } from "@/types/database"
 import type { ClientInput } from "./schema"
 import type { Client } from "./types"
 
@@ -31,5 +32,10 @@ export async function updateClient(id: string, input: ClientInput): Promise<Clie
 
 export async function deleteClient(id: string): Promise<void> {
   const { error } = await supabase.from("clients").delete().eq("id", id)
+  if (error) throw error
+}
+
+export async function updateClientStage(id: string, stage: ClientPipelineStage): Promise<void> {
+  const { error } = await supabase.from("clients").update({ pipeline_stage: stage }).eq("id", id)
   if (error) throw error
 }

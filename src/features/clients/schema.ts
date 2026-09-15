@@ -8,6 +8,7 @@ export const clientSchema = z.object({
   currency: z.enum(["USD", "BDT", "EUR", "GBP", "PHP"]),
   country: z.string().optional(),
   notes: z.string().optional(),
+  pipeline_stage: z.enum(["lead", "contacted", "proposal_sent", "won", "lost"]),
 })
 
 export type ClientInput = z.infer<typeof clientSchema>

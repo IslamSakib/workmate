@@ -2,6 +2,7 @@ export type ProjectStatus = "active" | "paused" | "completed" | "cancelled"
 export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "scheduled" | "partial"
 export type RecurringInvoiceFrequency = "weekly" | "monthly" | "quarterly"
 export type CurrencyCode = "USD" | "BDT" | "EUR" | "GBP" | "PHP"
+export type ClientPipelineStage = "lead" | "contacted" | "proposal_sent" | "won" | "lost"
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
 export interface Database {
@@ -34,6 +35,7 @@ export interface Database {
           currency: CurrencyCode
           country: string | null
           notes: string | null
+          pipeline_stage: ClientPipelineStage
           created_at: string
           updated_at: string
         }
