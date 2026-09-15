@@ -9,6 +9,7 @@ import LoginPage from "@/pages/LoginPage"
 import RegisterPage from "@/pages/RegisterPage"
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage"
 import ResetPasswordPage from "@/pages/ResetPasswordPage"
+import PublicInvoicePage from "@/pages/PublicInvoicePage"
 import DashboardPage from "@/pages/DashboardPage"
 import ClientsPage from "@/pages/ClientsPage"
 import ProjectsPage from "@/pages/ProjectsPage"
@@ -40,6 +41,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         </Route>
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/i/:token" element={<PublicInvoicePage />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>

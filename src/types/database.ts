@@ -174,6 +174,7 @@ export interface Database {
           last_reminder_sent_at: string | null
           reminder_count: number
           amount_paid: number
+          public_token: string
           created_at: string
           updated_at: string
         }
@@ -269,6 +270,7 @@ export interface Database {
           theme: string
           invoice_prefix: string
           tax_rate_pct: number
+          payment_url: string | null
           created_at: string
           updated_at: string
         }
@@ -280,7 +282,12 @@ export interface Database {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      get_public_invoice: {
+        Args: { p_token: string }
+        Returns: Json
+      }
+    }
   }
 }
 

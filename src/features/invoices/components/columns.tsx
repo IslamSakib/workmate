@@ -1,5 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table"
-import { Download, Mail, MoreHorizontal, Pencil, Trash2, Wallet } from "lucide-react"
+import { Download, Link2, Mail, MoreHorizontal, Pencil, Trash2, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -18,6 +18,7 @@ interface ColumnActions {
   onExport: (invoice: InvoiceWithRelations) => void
   onRecordPayment: (invoice: InvoiceWithRelations) => void
   onSendReminder: (invoice: InvoiceWithRelations) => void
+  onCopyLink: (invoice: InvoiceWithRelations) => void
 }
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
@@ -40,6 +41,7 @@ export function getInvoiceColumns({
   onExport,
   onRecordPayment,
   onSendReminder,
+  onCopyLink,
 }: ColumnActions): ColumnDef<InvoiceWithRelations, unknown>[] {
   return [
     { accessorKey: "invoice_number", header: "Invoice #" },
@@ -100,6 +102,10 @@ export function getInvoiceColumns({
               <DropdownMenuItem onClick={() => onExport(invoice)}>
                 <Download className="size-4" />
                 Export PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onCopyLink(invoice)}>
+                <Link2 className="size-4" />
+                Copy share link
               </DropdownMenuItem>
               {canRecordPayment && (
                 <DropdownMenuItem onClick={() => onRecordPayment(invoice)}>

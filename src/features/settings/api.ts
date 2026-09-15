@@ -23,6 +23,8 @@ export async function updateProfile(userId: string, input: ProfileInput): Promis
 }
 
 export async function updateSettings(userId: string, input: PreferencesInput): Promise<void> {
-  const { error } = await supabase.from("settings").upsert({ user_id: userId, ...input })
+  const { error } = await supabase
+    .from("settings")
+    .upsert({ user_id: userId, ...input, payment_url: input.payment_url || null })
   if (error) throw error
 }

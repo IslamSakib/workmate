@@ -30,7 +30,13 @@ export default function SettingsPage() {
   const profileForm = useForm<ProfileInput>({ resolver: zodResolver(profileSchema) })
   const preferencesForm = useForm<PreferencesInput>({
     resolver: zodResolver(preferencesSchema) as Resolver<PreferencesInput>,
-    defaultValues: { default_currency: "USD", date_format: "MM/dd/yyyy", invoice_prefix: "INV-", tax_rate_pct: 0 },
+    defaultValues: {
+      default_currency: "USD",
+      date_format: "MM/dd/yyyy",
+      invoice_prefix: "INV-",
+      tax_rate_pct: 0,
+      payment_url: "",
+    },
   })
   const passwordForm = useForm<ResetPasswordInput>({ resolver: zodResolver(resetPasswordSchema) })
 
@@ -45,6 +51,7 @@ export default function SettingsPage() {
             date_format: settings.date_format,
             invoice_prefix: settings.invoice_prefix,
             tax_rate_pct: settings.tax_rate_pct,
+            payment_url: settings.payment_url ?? "",
           })
         }
       })
@@ -179,6 +186,18 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground">
                 Used to estimate how much of each period's revenue to set aside for taxes on the
                 Dashboard. Not tax advice — check with an accountant for your actual rate.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="payment_url">Payment link</Label>
+              <Input
+                id="payment_url"
+                placeholder="e.g. your Stripe Payment Link or paypal.me/you"
+                {...preferencesForm.register("payment_url")}
+              />
+              <p className="text-xs text-muted-foreground">
+                Shown as a "Pay now" button on shareable invoice links (Invoices → ⋯ → Copy share
+                link). Leave blank to hide the button.
               </p>
             </div>
             <Button type="submit" disabled={preferencesForm.formState.isSubmitting}>

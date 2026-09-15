@@ -10,5 +10,6 @@ export const preferencesSchema = z.object({
   date_format: z.string().min(1),
   invoice_prefix: z.string().min(1),
   tax_rate_pct: z.coerce.number().min(0).max(100),
+  payment_url: z.string().trim().optional(),
 })
 export type PreferencesInput = z.infer<typeof preferencesSchema>

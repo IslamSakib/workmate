@@ -154,6 +154,16 @@ export default function InvoicesPage() {
     }
   }
 
+  const handleCopyLink = async (invoice: InvoiceWithRelations) => {
+    const url = `${window.location.origin}/i/${invoice.public_token}`
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success("Share link copied")
+    } catch {
+      toast.error("Couldn't copy link — your browser blocked clipboard access")
+    }
+  }
+
   const columns = getInvoiceColumns({
     onEdit: async (invoice) => {
       try {
@@ -169,6 +179,7 @@ export default function InvoicesPage() {
     onExport: handleExport,
     onRecordPayment: (invoice) => setPayingInvoice(invoice),
     onSendReminder: handleSendReminder,
+    onCopyLink: handleCopyLink,
   })
 
   return (
