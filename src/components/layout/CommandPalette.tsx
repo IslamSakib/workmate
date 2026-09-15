@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Users, FolderKanban, ListChecks, FileText, Repeat, CalendarSync, Receipt } from "lucide-react"
+import { Users, FolderKanban, ListChecks, FileText, FileSignature, Repeat, CalendarSync, Receipt } from "lucide-react"
 import {
   CommandDialog,
   CommandEmpty,
@@ -16,6 +16,7 @@ import { listProjects } from "@/features/projects/api"
 import { listTasks } from "@/features/tasks/api"
 import { listInvoices } from "@/features/invoices/api"
 import { listExpenses } from "@/features/expenses/api"
+import { listProposals } from "@/features/proposals/api"
 
 interface SearchResult {
   id: string
@@ -40,6 +41,7 @@ export function CommandPalette({
   const [tasks, setTasks] = useState<SearchResult[]>([])
   const [invoices, setInvoices] = useState<SearchResult[]>([])
   const [expenses, setExpenses] = useState<SearchResult[]>([])
+  const [proposals, setProposals] = useState<SearchResult[]>([])
 
   useEffect(() => {
     if (!open) return
@@ -84,6 +86,15 @@ export function CommandPalette({
         ),
       )
       .catch(() => setExpenses([]))
+    listProposals()
+      .then((rows) =>
+        setProposals(
+          rows
+            .slice(0, SEARCH_LIMIT)
+            .map((p) => ({ id: p.id, label: p.project_name, sublabel: p.clients?.client_name, to: "/proposals" })),
+        ),
+      )
+      .catch(() => setProposals([]))
   }, [open])
 
   const go = (to: string) => {
@@ -118,6 +129,10 @@ export function CommandPalette({
           <CommandItem onSelect={() => create("/invoices")}>
             <FileText />
             Create Invoice
+          </CommandItem>
+          <CommandItem onSelect={() => create("/proposals")}>
+            <FileSignature />
+            Create Proposal
           </CommandItem>
           <CommandItem onSelect={() => create("/retainers")}>
             <Repeat />
@@ -212,6 +227,21 @@ export function CommandPalette({
                   <Receipt />
                   {e.label}
                   {e.sublabel && <span className="text-muted-foreground">— {e.sublabel}</span>}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
+
+        {proposals.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Proposals">
+              {proposals.map((p) => (
+                <CommandItem key={p.id} onSelect={() => go(p.to)}>
+                  <FileSignature />
+                  {p.label}
+                  {p.sublabel && <span className="text-muted-foreground">— {p.sublabel}</span>}
                 </CommandItem>
               ))}
             </CommandGroup>

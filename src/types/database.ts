@@ -3,6 +3,7 @@ export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "scheduled" 
 export type RecurringInvoiceFrequency = "weekly" | "monthly" | "quarterly"
 export type CurrencyCode = "USD" | "BDT" | "EUR" | "GBP" | "PHP"
 export type ClientPipelineStage = "lead" | "contacted" | "proposal_sent" | "won" | "lost"
+export type ProposalStatus = "draft" | "sent" | "accepted" | "declined"
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
 export interface Database {
@@ -282,11 +283,45 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["settings"]["Row"]>
         Relationships: []
       }
+      proposals: {
+        Row: {
+          id: string
+          user_id: string
+          created_by: string | null
+          client_id: string
+          project_name: string
+          description: string | null
+          amount: number
+          currency: CurrencyCode
+          status: ProposalStatus
+          valid_until: string | null
+          public_token: string
+          accepted_at: string | null
+          accepted_name: string | null
+          created_project_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Partial<Database["public"]["Tables"]["proposals"]["Row"]> & {
+          client_id: string
+          project_name: string
+        }
+        Update: Partial<Database["public"]["Tables"]["proposals"]["Row"]>
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
       get_public_invoice: {
         Args: { p_token: string }
+        Returns: Json
+      }
+      get_public_proposal: {
+        Args: { p_token: string }
+        Returns: Json
+      }
+      accept_public_proposal: {
+        Args: { p_token: string; p_accepted_name: string }
         Returns: Json
       }
     }

@@ -32,10 +32,18 @@ interface ProjectFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   project?: Project | null
+  /** Prefill values for a brand-new project (e.g. converting an accepted Proposal). Ignored when editing. */
+  initialValues?: Partial<ProjectInput>
   onSubmit: (values: ProjectInput) => Promise<void>
 }
 
-export function ProjectFormDialog({ open, onOpenChange, project, onSubmit }: ProjectFormDialogProps) {
+export function ProjectFormDialog({
+  open,
+  onOpenChange,
+  project,
+  initialValues,
+  onSubmit,
+}: ProjectFormDialogProps) {
   const clients = useClientsList()
   const {
     register,
@@ -64,7 +72,7 @@ export function ProjectFormDialog({ open, onOpenChange, project, onSubmit }: Pro
               due_date: project.due_date,
               notes: project.notes ?? "",
             }
-          : { currency: "USD", status: "active" },
+          : { currency: "USD", status: "active", ...initialValues },
       )
     }
   }, [open, project, reset])

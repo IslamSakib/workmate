@@ -10,6 +10,7 @@ import RegisterPage from "@/pages/RegisterPage"
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage"
 import ResetPasswordPage from "@/pages/ResetPasswordPage"
 import PublicInvoicePage from "@/pages/PublicInvoicePage"
+import PublicProposalPage from "@/pages/PublicProposalPage"
 import DashboardPage from "@/pages/DashboardPage"
 import ClientsPage from "@/pages/ClientsPage"
 import ProjectsPage from "@/pages/ProjectsPage"
@@ -18,6 +19,7 @@ import TimerPage from "@/pages/TimerPage"
 import ReportsPage from "@/pages/ReportsPage"
 import InsightsPage from "@/pages/InsightsPage"
 import InvoicesPage from "@/pages/InvoicesPage"
+import ProposalsPage from "@/pages/ProposalsPage"
 import RetainersPage from "@/pages/RetainersPage"
 import RecurringInvoicesPage from "@/pages/RecurringInvoicesPage"
 import ExpensesPage from "@/pages/ExpensesPage"
@@ -42,6 +44,7 @@ function App() {
         </Route>
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/i/:token" element={<PublicInvoicePage />} />
+        <Route path="/p/:token" element={<PublicProposalPage />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
@@ -53,6 +56,7 @@ function App() {
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/insights" element={<InsightsPage />} />
             <Route path="/invoices" element={<InvoicesPage />} />
+            <Route path="/proposals" element={<ProposalsPage />} />
             <Route path="/recurring-invoices" element={<RecurringInvoicesPage />} />
             <Route path="/retainers" element={<RetainersPage />} />
             <Route path="/expenses" element={<ExpensesPage />} />

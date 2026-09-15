@@ -6,6 +6,7 @@ import {
   Timer,
   BarChart3,
   FileText,
+  FileSignature,
   Repeat,
   CalendarSync,
   Receipt,
@@ -23,6 +24,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { label: "Clients", to: "/clients", icon: Users },
+  { label: "Proposals", to: "/proposals", icon: FileSignature },
   { label: "Projects", to: "/projects", icon: FolderKanban },
   { label: "Tasks", to: "/tasks", icon: ListChecks },
   { label: "Timer", to: "/timer", icon: Timer },
