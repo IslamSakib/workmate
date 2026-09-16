@@ -116,6 +116,7 @@ export default function InvoicesPage() {
           amount: Number(i.amount),
         })),
         total: Number(invoice.total),
+        amount_paid: Number(invoice.amount_paid),
         notes: invoice.notes,
       })
     } catch (error) {

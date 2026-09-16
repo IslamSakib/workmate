@@ -109,7 +109,7 @@ async function getFlatFeeItemFor(
     .eq("id", projectId)
     .single()
   if (projectError) throw projectError
-  if (project.hourly_rate != null || !project.fixed_price) return null
+  if (project.hourly_rate || !project.fixed_price) return null
 
   const { data: invoices, error: invoicesError } = await supabase
     .from("invoices")

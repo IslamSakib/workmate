@@ -36,6 +36,7 @@ export interface InvoicePdfData {
   project_name?: string | null
   items: InvoicePdfItem[]
   total: number
+  amount_paid: number
   notes?: string | null
 }
 
@@ -126,12 +127,28 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
 
   const boxWidth = 220
   const boxHeight = 44
-  ensureSpace(ctx, boxHeight + 40)
+  const hasPayment = data.amount_paid > 0
   const boxX = PAGE_WIDTH - MARGIN - boxWidth
+
+  ensureSpace(ctx, boxHeight + (hasPayment ? 34 : 0) + 40)
+
+  if (hasPayment) {
+    const summaryRow = (label: string, value: string) => {
+      const valueWidth = ctx.bold.widthOfTextAtSize(value, 10)
+      drawText(ctx, label, { x: boxX, y: ctx.cursorY, size: 10, color: GRAY })
+      drawText(ctx, value, { x: boxX + boxWidth - valueWidth, y: ctx.cursorY, size: 10, bold: true, color: DARK })
+      ctx.cursorY -= 17
+    }
+    summaryRow("Subtotal", formatCurrency(data.total, data.currency))
+    summaryRow("Amount paid", `-${formatCurrency(data.amount_paid, data.currency)}`)
+    ctx.cursorY -= 6
+  }
+
+  const balanceDue = Math.max(0, data.total - data.amount_paid)
   const boxY = ctx.cursorY - boxHeight
   drawRect(ctx, { x: boxX, y: boxY, width: boxWidth, height: boxHeight, color: ACCENT_LIGHT })
-  drawText(ctx, "TOTAL DUE", { x: boxX + 16, y: boxY + boxHeight - 18, size: 9, bold: true, color: GRAY })
-  const totalLabel = formatCurrency(data.total, data.currency)
+  drawText(ctx, hasPayment ? "BALANCE DUE" : "TOTAL DUE", { x: boxX + 16, y: boxY + boxHeight - 18, size: 9, bold: true, color: GRAY })
+  const totalLabel = formatCurrency(hasPayment ? balanceDue : data.total, data.currency)
   const totalWidth = ctx.bold.widthOfTextAtSize(totalLabel, 18)
   drawText(ctx, totalLabel, { x: boxX + boxWidth - 16 - totalWidth, y: boxY + 12, size: 18, bold: true, color: ACCENT })
 
