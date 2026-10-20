@@ -300,7 +300,7 @@ export default function InvoicesPage() {
             <Stat accent="info" label="Overdue" value={<Money amounts={lateAmounts} />} sub={`${late.length} past their due date`} />
           </div>
 
-          <div role="tablist" aria-label="Filter by status" className="-mb-px flex gap-5 overflow-x-auto border-b">
+          <div role="tablist" aria-label="Filter by status" className="flex gap-5 overflow-x-auto overflow-y-hidden border-b [scrollbar-width:none]">
             {TABS.map((t) => (
               <button
                 key={t.id}

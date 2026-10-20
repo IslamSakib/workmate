@@ -63,7 +63,7 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
     if (!open) return
     const amountItem = (items ?? []).find((i) => i.kind === "amount")
     setKind((invoice?.kind as Kind | undefined) ?? "standard")
-    setAmountMode("fixed")
+    setAmountMode(amountItem ? "fixed" : "percent")
     setPercent("50")
     setFixedAmount(amountItem ? String(amountItem.amount) : "")
     setLineText(amountItem?.task_name ?? "")

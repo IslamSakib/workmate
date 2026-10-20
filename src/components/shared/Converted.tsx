@@ -77,14 +77,16 @@ export function Converted({
   }
 
   const present = Object.entries(amounts).filter(([, v]) => v) as [CurrencyCode, number][]
-  const mixed = present.length > 1 || (present.length === 1 && present[0][0] !== mode)
+  // Underneath the total, list the original amounts that were converted (not ones already in this currency).
+  const originals = present.filter(([code]) => code !== mode)
+  const mixed = originals.length > 0
 
   return (
     <div>
       <div>{total == null ? "No rate" : formatCurrency(total, mode)}</div>
       {mixed && (
         <div className="mt-0.5 space-y-0.5 text-xs font-normal text-muted-foreground">
-          {present.map(([code, v]) => (
+          {originals.map(([code, v]) => (
             <div key={code}>{formatCurrency(v, code)}</div>
           ))}
         </div>

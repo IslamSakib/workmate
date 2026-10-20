@@ -2,7 +2,7 @@ import type { CurrencyCode } from "@/types/database"
 
 export const CURRENCIES: { code: CurrencyCode; label: string; locale: string }[] = [
   { code: "USD", label: "US Dollar", locale: "en-US" },
-  { code: "BDT", label: "Bangladeshi Taka", locale: "bn-BD-u-nu-latn" },
+  { code: "BDT", label: "Bangladeshi Taka", locale: "en-US" },
   { code: "EUR", label: "Euro", locale: "de-DE" },
   { code: "GBP", label: "British Pound", locale: "en-GB" },
   { code: "PHP", label: "Philippine Peso", locale: "en-PH" },
