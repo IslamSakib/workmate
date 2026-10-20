@@ -1,4 +1,4 @@
-import type { CurrencyAmounts } from "@/lib/currency"
+import type { BaseTotal, CurrencyAmounts } from "@/lib/currency"
 import type { CurrencyCode } from "@/types/database"
 
 export interface DashboardStats {
@@ -11,6 +11,8 @@ export interface DashboardStats {
   revenueWeek: CurrencyAmounts
   revenueMonth: CurrencyAmounts
   revenueYear: CurrencyAmounts
+  /** Revenue in the default currency, using agreed project rates where set. */
+  revenueBase: { today: BaseTotal; week: BaseTotal; month: BaseTotal; year: BaseTotal }
   activeProjects: number
   totalClients: number
   totalTasks: number
@@ -19,8 +21,10 @@ export interface DashboardStats {
 }
 
 export interface OutstandingInvoices {
+  /** Balance owed (total minus payments received), per currency. */
   total: CurrencyAmounts
   count: number
+  overdueCount: number
 }
 
 export interface UpcomingDeadline {
@@ -39,21 +43,6 @@ export interface GrowthDeltas {
   monthRevenueGrowthPct: number | null
 }
 
-export interface RetainerUsageRow {
-  id: string
-  client_name: string
-  used_hours: number
-  included_hours: number
-  overage_amount: number
-  currency: CurrencyCode
-}
-
-export interface RetainerMetrics {
-  activeRetainerCount: number
-  totalMonthlyFee: CurrencyAmounts
-  totalOverageRevenue: CurrencyAmounts
-  usage: RetainerUsageRow[]
-}
 
 export interface TrendPoint {
   label: string
@@ -69,6 +58,7 @@ export interface ProfitMetrics {
   expensesYear: CurrencyAmounts
   profitMonth: CurrencyAmounts
   profitYear: CurrencyAmounts
+  profitMonthBase: BaseTotal
   /** null when revenue is 0 or more than one currency is in play this month
    * (a blended margin % across currencies would be meaningless). */
   profitMarginMonth: number | null

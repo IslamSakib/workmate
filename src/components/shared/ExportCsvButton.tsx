@@ -1,4 +1,3 @@
-import { Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { downloadCsv, toCsv, type CsvColumn } from "@/lib/csv"
 
@@ -16,7 +15,6 @@ export function ExportCsvButton<T>({ filename, rows, columns }: ExportCsvButtonP
       disabled={rows.length === 0}
       onClick={() => downloadCsv(filename, toCsv(rows, columns))}
     >
-      <Download className="size-4" />
       Export CSV
     </Button>
   )

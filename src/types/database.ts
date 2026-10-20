@@ -4,6 +4,8 @@ export type RecurringInvoiceFrequency = "weekly" | "monthly" | "quarterly"
 export type CurrencyCode = "USD" | "BDT" | "EUR" | "GBP" | "PHP"
 export type ClientPipelineStage = "lead" | "contacted" | "proposal_sent" | "won" | "lost"
 export type ProposalStatus = "draft" | "sent" | "accepted" | "declined"
+export type InvoiceKind = "standard" | "advance" | "milestone"
+export type InvoiceItemKind = "task" | "flat_fee" | "amount" | "advance_credit"
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
 export interface Database {
@@ -100,6 +102,9 @@ export interface Database {
           hourly_rate: number | null
           fixed_price: number | null
           currency: CurrencyCode
+          /** Agreed rate: 1 unit of `currency` = fx_rate units of fx_base. Null = use the settings rate table. */
+          fx_rate: number | null
+          fx_base: CurrencyCode | null
           status: ProjectStatus
           start_date: string | null
           due_date: string | null
@@ -177,6 +182,10 @@ export interface Database {
           last_reminder_sent_at: string | null
           reminder_count: number
           amount_paid: number
+          recurring_id: string | null
+          kind: InvoiceKind
+          fx_rate: number | null
+          fx_base: CurrencyCode | null
           public_token: string
           created_at: string
           updated_at: string
@@ -194,6 +203,8 @@ export interface Database {
           amount: number
           paid_date: string
           method: string | null
+          reference: string | null
+          fx_rate: number | null
           notes: string | null
           created_at: string
         }
@@ -216,6 +227,16 @@ export interface Database {
           next_run_date: string
           active: boolean
           last_generated_invoice_id: string | null
+          /** fixed = bill `amount` each period; tasks = bill billable tasks logged in the previous period. */
+          billing_mode: "fixed" | "tasks"
+          amount: number | null
+          description: string | null
+          start_date: string | null
+          periods_generated: number
+          due_days: number
+          issue_as: "draft" | "sent"
+          /** Null = runs until the template is paused or deleted. */
+          ends_on: string | null
           notes: string | null
           created_at: string
           updated_at: string
@@ -236,6 +257,8 @@ export interface Database {
           duration_seconds: number
           rate: number
           amount: number
+          kind: InvoiceItemKind
+          credit_invoice_id: string | null
           created_at: string
         }
         Insert: Partial<Database["public"]["Tables"]["invoice_items"]["Row"]> & {
@@ -274,6 +297,10 @@ export interface Database {
           invoice_prefix: string
           tax_rate_pct: number
           payment_url: string | null
+          /** Units of default_currency (the base/reporting currency) per 1 unit of the key currency. */
+          exchange_rates: Partial<Record<CurrencyCode, number>>
+          rates_updated_at: string | null
+          next_invoice_seq: number
           created_at: string
           updated_at: string
         }
@@ -312,16 +339,24 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      create_invoice: {
+        Args: { p: Json }
+        Returns: Database["public"]["Tables"]["invoices"]["Row"]
+      }
+      update_invoice: {
+        Args: { p_id: string; p: Json }
+        Returns: Database["public"]["Tables"]["invoices"]["Row"]
+      }
+      generate_recurring_invoices: {
+        Args: Record<string, never>
+        Returns: number
+      }
+      next_invoice_number: {
+        Args: Record<string, never>
+        Returns: string
+      }
       get_public_invoice: {
         Args: { p_token: string }
-        Returns: Json
-      }
-      get_public_proposal: {
-        Args: { p_token: string }
-        Returns: Json
-      }
-      accept_public_proposal: {
-        Args: { p_token: string; p_accepted_name: string }
         Returns: Json
       }
     }

@@ -1,13 +1,27 @@
 import { z } from "zod"
 
-export const recurringInvoiceSchema = z.object({
-  client_id: z.string().nullable().optional(),
-  project_id: z.string().nullable().optional(),
-  currency: z.enum(["USD", "BDT", "EUR", "GBP", "PHP"]),
-  frequency: z.enum(["weekly", "monthly", "quarterly"]),
-  next_run_date: z.string().min(1, "Next run date is required"),
-  active: z.boolean(),
-  notes: z.string().optional(),
-})
+export const recurringInvoiceSchema = z
+  .object({
+    client_id: z.string().nullable().optional(),
+    project_id: z.string().nullable().optional(),
+    currency: z.enum(["USD", "BDT", "EUR", "GBP", "PHP"]),
+    frequency: z.enum(["weekly", "monthly", "quarterly"]),
+    billing_mode: z.enum(["fixed", "tasks"]),
+    amount: z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.number().positive().optional()),
+    description: z.string().optional(),
+    start_date: z.string().min(1, "Start date is required"),
+    due_days: z.coerce.number().int().min(0).max(365),
+    issue_as: z.enum(["draft", "sent"]),
+    ends_on: z.string().nullable().optional(),
+    notes: z.string().optional(),
+  })
+  .refine((v) => v.billing_mode !== "fixed" || (v.amount ?? 0) > 0, {
+    path: ["amount"],
+    message: "Enter the amount to bill each period",
+  })
+  .refine((v) => !v.ends_on || v.ends_on >= v.start_date, {
+    path: ["ends_on"],
+    message: "End date must be after the start date",
+  })
 
 export type RecurringInvoiceInput = z.infer<typeof recurringInvoiceSchema>

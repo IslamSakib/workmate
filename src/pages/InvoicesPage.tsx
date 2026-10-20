@@ -1,18 +1,21 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
-import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
-import { InfoTooltip } from "@/components/shared/InfoTooltip"
+import { PageHeader } from "@/components/shared/PageHeader"
+import { ErrorState } from "@/components/shared/States"
 import { ExportCsvButton } from "@/components/shared/ExportCsvButton"
+import { Money } from "@/components/shared/Money"
+import { Stat } from "@/components/shared/Status"
 import {
   createInvoice,
   deleteInvoice,
   deletePayment,
   getInvoiceItems,
+  getInvoicePayments,
   listInvoices,
   promoteScheduledInvoices,
   recordPayment,
@@ -20,22 +23,63 @@ import {
   updateInvoice,
 } from "@/features/invoices/api"
 import { InvoiceFormDialog } from "@/features/invoices/components/InvoiceFormDialog"
-import { RecordPaymentDialog } from "@/features/invoices/components/RecordPaymentDialog"
-import { getInvoiceColumns } from "@/features/invoices/components/columns"
-import type { BillableTask, InvoiceItem, InvoiceWithRelations } from "@/features/invoices/types"
+import { RecordPaymentDialog, type PaymentInput } from "@/features/invoices/components/RecordPaymentDialog"
+import { balanceOf, getInvoiceColumns, isOverdue } from "@/features/invoices/components/columns"
+import type { BillableTask, InvoiceItem, InvoicePayment, InvoiceWithRelations } from "@/features/invoices/types"
 import type { InvoiceInput } from "@/features/invoices/schema"
-import { generateInvoicePdf } from "@/lib/pdf/invoicePdf"
-import { formatCurrency } from "@/lib/currency"
+import { generateInvoicePdf, generateReceiptPdf } from "@/lib/pdf/invoicePdf"
+import { formatCurrency, sumByCurrency } from "@/lib/currency"
+import { getProfile, getSettings } from "@/features/settings/api"
+import { useAuthStore } from "@/store/authStore"
+import { cn } from "@/lib/utils"
+
+const TABS = [
+  { id: "all", label: "All" },
+  { id: "draft", label: "Draft" },
+  { id: "sent", label: "Sent" },
+  { id: "partial", label: "Partial" },
+  { id: "overdue", label: "Overdue" },
+  { id: "paid", label: "Paid" },
+] as const
+type TabId = (typeof TABS)[number]["id"]
+
+function inTab(i: InvoiceWithRelations, tab: TabId) {
+  if (tab === "all") return true
+  if (tab === "overdue") return isOverdue(i)
+  if (tab === "sent") return i.status === "sent" && !isOverdue(i)
+  if (tab === "partial") return i.status === "partial" && !isOverdue(i)
+  return i.status === tab
+}
 
 export default function InvoicesPage() {
-  const [invoices, setInvoices] = useState<InvoiceWithRelations[]>([])
-  const [loading, setLoading] = useState(true)
+  const user = useAuthStore((s) => s.user)
+  const [invoices, setInvoices] = useState<InvoiceWithRelations[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [tab, setTab] = useState<TabId>("all")
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<InvoiceWithRelations | null>(null)
   const [editingItems, setEditingItems] = useState<InvoiceItem[]>([])
   const [deleting, setDeleting] = useState<InvoiceWithRelations | null>(null)
-  const [payingInvoice, setPayingInvoice] = useState<InvoiceWithRelations | null>(null)
+  const [paying, setPaying] = useState<InvoiceWithRelations | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
+
+  const load = useCallback(async () => {
+    setError(null)
+    try {
+      const fetched = await listInvoices()
+      setInvoices(fetched)
+      return fetched
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load invoices")
+      return []
+    }
+  }, [])
+
+  useEffect(() => {
+    promoteScheduledInvoices()
+      .catch((e) => toast.error(e instanceof Error ? e.message : "Could not update scheduled invoices"))
+      .finally(load)
+  }, [load])
 
   useEffect(() => {
     if (searchParams.get("new") === "1") {
@@ -49,25 +93,16 @@ export default function InvoicesPage() {
     }
   }, [searchParams, setSearchParams])
 
-  const load = async () => {
-    setLoading(true)
-    try {
-      const fetched = await listInvoices()
-      setInvoices(fetched)
-      return fetched
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load invoices")
-      return []
-    } finally {
-      setLoading(false)
-    }
-  }
+  const counts = useMemo(() => {
+    const out: Record<TabId, number> = { all: 0, draft: 0, sent: 0, partial: 0, overdue: 0, paid: 0 }
+    for (const i of invoices ?? []) for (const t of TABS) if (inTab(i, t.id)) out[t.id] += 1
+    return out
+  }, [invoices])
 
-  useEffect(() => {
-    promoteScheduledInvoices()
-      .catch(() => {})
-      .finally(load)
-  }, [])
+  const open = (invoices ?? []).filter((i) => ["sent", "partial", "overdue"].includes(i.status))
+  const owed = sumByCurrency(open, balanceOf, (i) => i.currency)
+  const late = open.filter(isOverdue)
+  const lateAmounts = sumByCurrency(late, balanceOf, (i) => i.currency)
 
   const handleSubmit = async (values: InvoiceInput, items: BillableTask[]) => {
     if (editing) {
@@ -79,33 +114,45 @@ export default function InvoicesPage() {
     }
     setEditing(null)
     setEditingItems([])
-    load()
+    await load()
   }
 
   const handleDelete = async () => {
     if (!deleting) return
     try {
       await deleteInvoice(deleting.id)
-      toast.success("Invoice deleted")
+      toast.success("Invoice deleted. Its tasks can be billed again.")
       setDeleting(null)
-      load()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete invoice")
+      await load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete invoice")
     }
+  }
+
+  const documentContext = async () => {
+    if (!user) return { fromName: null, paymentUrl: null }
+    const [profile, settings] = await Promise.all([getProfile(user.id), getSettings(user.id)])
+    return { fromName: profile?.display_name ?? null, paymentUrl: settings?.payment_url ?? null }
   }
 
   const handleExport = async (invoice: InvoiceWithRelations) => {
     try {
-      const items = await getInvoiceItems(invoice.id)
+      const [items, payments, ctx] = await Promise.all([
+        getInvoiceItems(invoice.id),
+        getInvoicePayments(invoice.id),
+        documentContext(),
+      ])
       await generateInvoicePdf({
         invoice_number: invoice.invoice_number,
-        status: invoice.status,
+        status: isOverdue(invoice) ? "overdue" : invoice.status,
+        kind: invoice.kind,
         issue_date: invoice.issue_date,
         due_date: invoice.due_date,
-        period_start: invoice.period_start,
-        period_end: invoice.period_end,
+        period_start: invoice.kind === "standard" ? invoice.period_start : null,
+        period_end: invoice.kind === "standard" ? invoice.period_end : null,
         currency: invoice.currency,
-        client_name: invoice.clients?.client_name ?? "—",
+        from_name: ctx.fromName,
+        client_name: invoice.clients?.client_name ?? "-",
         client_email: invoice.clients?.email,
         project_name: invoice.projects?.project_name,
         items: items.map((i) => ({
@@ -117,128 +164,175 @@ export default function InvoicesPage() {
         })),
         total: Number(invoice.total),
         amount_paid: Number(invoice.amount_paid),
+        payments: payments.map((p) => ({ date: p.paid_date, amount: Number(p.amount), method: p.method, reference: p.reference })),
         notes: invoice.notes,
+        payment_url: ctx.paymentUrl,
       })
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to export PDF")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to export PDF")
     }
   }
 
-  const handleRecordPayment = async (amount: number, paidDate: string, method: string) => {
-    if (!payingInvoice) return
-    await recordPayment(payingInvoice.id, { amount, paid_date: paidDate, method: method || null })
-    toast.success("Payment recorded")
+  const refreshPaying = async () => {
     const fetched = await load()
-    setPayingInvoice((prev) => fetched.find((i) => i.id === prev?.id) ?? prev)
+    setPaying((prev) => fetched.find((i) => i.id === prev?.id) ?? prev)
+  }
+
+  const handleRecordPayment = async (payment: PaymentInput) => {
+    if (!paying) return
+    await recordPayment(paying.id, payment)
+    toast.success("Payment recorded")
+    await refreshPaying()
   }
 
   const handleDeletePayment = async (paymentId: string) => {
-    if (!payingInvoice) return
-    await deletePayment(paymentId, payingInvoice.id)
-    const fetched = await load()
-    setPayingInvoice((prev) => fetched.find((i) => i.id === prev?.id) ?? prev)
+    await deletePayment(paymentId)
+    await refreshPaying()
+  }
+
+  const handleReceipt = async (payment: InvoicePayment, paidToDate: number) => {
+    if (!paying) return
+    try {
+      const ctx = await documentContext()
+      await generateReceiptPdf({
+        invoice_number: paying.invoice_number,
+        client_name: paying.clients?.client_name ?? "-",
+        currency: paying.currency,
+        from_name: ctx.fromName,
+        invoice_total: Number(paying.total),
+        paid_to_date: paidToDate,
+        payment: { date: payment.paid_date, amount: Number(payment.amount), method: payment.method, reference: payment.reference },
+      })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to create receipt")
+    }
   }
 
   const handleSendReminder = async (invoice: InvoiceWithRelations) => {
-    const subject = encodeURIComponent(`Reminder: Invoice ${invoice.invoice_number}`)
+    const subject = encodeURIComponent(`Reminder: invoice ${invoice.invoice_number}`)
     const body = encodeURIComponent(
-      `Hi${invoice.clients?.client_name ? ` ${invoice.clients.client_name}` : ""},\n\nThis is a reminder that invoice ${invoice.invoice_number} for ${formatCurrency(Number(invoice.total) - Number(invoice.amount_paid), invoice.currency)} is ${invoice.status === "overdue" ? "overdue" : "due"}${invoice.due_date ? ` (due ${invoice.due_date})` : ""}. Please let us know if you have any questions.\n\nThanks!`,
+      `Hi${invoice.clients?.client_name ? ` ${invoice.clients.client_name}` : ""},\n\nThis is a reminder that invoice ${invoice.invoice_number} for ${formatCurrency(balanceOf(invoice), invoice.currency)} is ${isOverdue(invoice) ? "overdue" : "due"}${invoice.due_date ? ` (due ${invoice.due_date})` : ""}. Please let me know if you have any questions.\n\nThanks!`,
     )
     const link = document.createElement("a")
     link.href = `mailto:${invoice.clients?.email ?? ""}?subject=${subject}&body=${body}`
     link.click()
     try {
       await recordReminderSent(invoice.id)
-      load()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to record reminder")
+      await load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to record reminder")
     }
   }
 
   const handleCopyLink = async (invoice: InvoiceWithRelations) => {
-    const url = `${window.location.origin}/i/${invoice.public_token}`
     try {
-      await navigator.clipboard.writeText(url)
+      await navigator.clipboard.writeText(`${window.location.origin}/i/${invoice.public_token}`)
       toast.success("Share link copied")
     } catch {
-      toast.error("Couldn't copy link — your browser blocked clipboard access")
+      toast.error("Could not copy the link. Your browser blocked clipboard access.")
     }
   }
 
   const columns = getInvoiceColumns({
     onEdit: async (invoice) => {
       try {
-        const items = await getInvoiceItems(invoice.id)
-        setEditingItems(items)
+        setEditingItems(await getInvoiceItems(invoice.id))
         setEditing(invoice)
         setFormOpen(true)
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to load invoice")
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to load invoice")
       }
     },
-    onDelete: (invoice) => setDeleting(invoice),
+    onDelete: setDeleting,
     onExport: handleExport,
-    onRecordPayment: (invoice) => setPayingInvoice(invoice),
+    onRecordPayment: setPaying,
     onSendReminder: handleSendReminder,
     onCopyLink: handleCopyLink,
   })
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">Invoices</h1>
-            <InfoTooltip text="An invoice is a bill you send to get paid. Pick a client and a date range, and we pull in the hours you tracked for you." />
-          </div>
-          <p className="text-sm text-muted-foreground">Bill clients and track payment status.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <ExportCsvButton
-            filename="invoices.csv"
-            rows={invoices}
-            columns={[
-              { label: "Invoice #", value: (i) => i.invoice_number },
-              { label: "Client", value: (i) => i.clients?.client_name },
-              { label: "Project", value: (i) => i.projects?.project_name },
-              { label: "Status", value: (i) => i.status },
-              { label: "Issue date", value: (i) => i.issue_date },
-              { label: "Due date", value: (i) => i.due_date },
-              { label: "Total", value: (i) => i.total },
-              { label: "Amount paid", value: (i) => i.amount_paid },
-              { label: "Currency", value: (i) => i.currency },
-            ]}
-          />
-          <Button
-            onClick={() => {
-              setEditing(null)
-              setEditingItems([])
-              setFormOpen(true)
-            }}
-          >
-            <Plus className="size-4" />
-            New Invoice
-          </Button>
-        </div>
-      </div>
+  const visible = (invoices ?? []).filter((i) => inTab(i, tab))
 
-      {loading ? (
+  return (
+    <>
+      <PageHeader
+        title="Invoices"
+        description="Bill for tracked work, or ask for an advance or milestone payment. Record payments as they arrive."
+        actions={
+          <>
+            <ExportCsvButton
+              filename="invoices.csv"
+              rows={invoices ?? []}
+              columns={[
+                { label: "Invoice", value: (i) => i.invoice_number },
+                { label: "Type", value: (i) => i.kind },
+                { label: "Client", value: (i) => i.clients?.client_name },
+                { label: "Project", value: (i) => i.projects?.project_name },
+                { label: "Status", value: (i) => (isOverdue(i) ? "overdue" : i.status) },
+                { label: "Issued", value: (i) => i.issue_date },
+                { label: "Due", value: (i) => i.due_date },
+                { label: "Total", value: (i) => i.total },
+                { label: "Paid", value: (i) => i.amount_paid },
+                { label: "Balance", value: (i) => balanceOf(i) },
+                { label: "Currency", value: (i) => i.currency },
+              ]}
+            />
+            <Button
+              onClick={() => {
+                setEditing(null)
+                setEditingItems([])
+                setFormOpen(true)
+              }}
+            >
+              New invoice
+            </Button>
+          </>
+        }
+      />
+
+      {error ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : !invoices ? (
         <Skeleton className="h-64" />
       ) : (
-        <DataTable
-          columns={columns}
-          data={invoices}
-          searchKey="invoice_number"
-          searchPlaceholder="Search invoices..."
-          emptyMessage="No invoices yet. Create your first invoice to get paid."
-        />
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Stat accent="warn" label="Owed to you" value={<Money amounts={owed} />} sub={`${open.length} open invoices, balance after payments`} />
+            <Stat accent="info" label="Overdue" value={<Money amounts={lateAmounts} />} sub={`${late.length} past their due date`} />
+          </div>
+
+          <div role="tablist" aria-label="Filter by status" className="-mb-px flex gap-5 overflow-x-auto border-b">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={tab === t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "-mb-px shrink-0 border-b-2 py-2 text-sm",
+                  tab === t.id ? "border-primary font-semibold text-primary" : "border-transparent text-muted-foreground",
+                )}
+              >
+                {t.label} {counts[t.id]}
+              </button>
+            ))}
+          </div>
+
+          <DataTable
+            columns={columns}
+            data={visible}
+            searchKey="invoice_number"
+            searchPlaceholder="Search by number"
+            emptyMessage={tab === "all" ? "No invoices yet. Create one to get paid." : "No invoices in this view."}
+          />
+        </>
       )}
 
       <InvoiceFormDialog
         open={formOpen}
-        onOpenChange={(open) => {
-          setFormOpen(open)
-          if (!open) {
+        onOpenChange={(o) => {
+          setFormOpen(o)
+          if (!o) {
             setEditing(null)
             setEditingItems([])
           }
@@ -250,19 +344,20 @@ export default function InvoicesPage() {
 
       <ConfirmDialog
         open={!!deleting}
-        onOpenChange={(open) => !open && setDeleting(null)}
+        onOpenChange={(o) => !o && setDeleting(null)}
         title="Delete invoice?"
-        description={`This will permanently delete invoice ${deleting?.invoice_number}.`}
+        description={`This permanently deletes invoice ${deleting?.invoice_number}, its payments and credit lines. Its tasks become billable again.`}
         onConfirm={handleDelete}
       />
 
       <RecordPaymentDialog
-        open={!!payingInvoice}
-        onOpenChange={(open) => !open && setPayingInvoice(null)}
-        invoice={payingInvoice}
+        open={!!paying}
+        onOpenChange={(o) => !o && setPaying(null)}
+        invoice={paying}
         onSubmit={handleRecordPayment}
         onDeletePayment={handleDeletePayment}
+        onReceipt={handleReceipt}
       />
-    </div>
+    </>
   )
 }

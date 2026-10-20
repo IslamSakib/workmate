@@ -8,25 +8,25 @@ import {
   startOfWeek,
   startOfYear,
 } from "date-fns"
-import { FileText } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DatePicker } from "@/components/shared/DatePicker"
 import { DataTable } from "@/components/shared/DataTable"
-import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import { ExportCsvButton } from "@/components/shared/ExportCsvButton"
-import { currenciesIn, formatCurrency, formatCurrencyAmounts } from "@/lib/currency"
+import { currenciesIn, formatCurrency } from "@/lib/currency"
+import { PageHeader } from "@/components/shared/PageHeader"
+import { Stat } from "@/components/shared/Status"
+import { Converted, ShowInSelector } from "@/components/shared/Converted"
+import { useCurrencySettings } from "@/hooks/useCurrencySettings"
+import { useShowIn } from "@/hooks/useShowIn"
 import type { CurrencyCode } from "@/types/database"
 import { formatDuration } from "@/lib/duration"
 import { buildChartSeries, getReportFixedFeeRevenue, getReportRows, summarize, toReportRows } from "@/features/reports/api"
 import type { ReportChartPoint, ReportPreset, ReportRow, ReportSummary } from "@/features/reports/types"
 import { generateReportPdf } from "@/lib/pdf/reportPdf"
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -66,6 +66,8 @@ const columns: ColumnDef<ReportRow, unknown>[] = [
 ]
 
 export default function ReportsPage() {
+  const { base, rates } = useCurrencySettings()
+  const [showIn, setShowIn] = useShowIn(base)
   const [preset, setPreset] = useState<ReportPreset>("monthly")
   const [customFrom, setCustomFrom] = useState<string | null>(format(startOfMonth(new Date()), "yyyy-MM-dd"))
   const [customTo, setCustomTo] = useState<string | null>(format(endOfMonth(new Date()), "yyyy-MM-dd"))
@@ -124,151 +126,128 @@ export default function ReportsPage() {
     })
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
-            <InfoTooltip text="See how much you worked and earned over any time period. You can download this as a PDF too." />
-          </div>
-          <p className="text-sm text-muted-foreground">{rangeLabel}</p>
-        </div>
-        <div className="flex gap-2">
-          <ExportCsvButton
-            filename="report.csv"
-            rows={rows}
-            columns={[
-              { label: "Date", value: (r) => r.date },
-              { label: "Task", value: (r) => r.task_name },
-              { label: "Project", value: (r) => r.project_name },
-              { label: "Client", value: (r) => r.client_name },
-              { label: "Duration", value: (r) => formatDuration(r.duration_seconds) },
-              { label: "Billable", value: (r) => r.billable },
-            ]}
-          />
-          <Button onClick={handleExportReport}>
-            <FileText className="size-4" />
-            Report PDF
-          </Button>
-        </div>
-      </div>
+  const [chartPick, setChartPick] = useState<CurrencyCode | null>(null)
+  const chartCode = chartPick && revenueCurrencies.includes(chartPick) ? chartPick : revenueCurrencies[0]
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Tabs value={preset} onValueChange={(v) => setPreset(v as ReportPreset)}>
-          <TabsList>
-            <TabsTrigger value="daily">Daily</TabsTrigger>
-            <TabsTrigger value="weekly">Weekly</TabsTrigger>
-            <TabsTrigger value="monthly">Monthly</TabsTrigger>
-            <TabsTrigger value="yearly">Yearly</TabsTrigger>
-            <TabsTrigger value="custom">Custom</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        {preset === "custom" && (
-          <div className="flex items-center gap-2">
-            <DatePicker value={customFrom} onChange={setCustomFrom} placeholder="From" />
-            <span className="text-sm text-muted-foreground">to</span>
-            <DatePicker value={customTo} onChange={setCustomTo} placeholder="To" />
-          </div>
-        )}
+  return (
+    <>
+      <PageHeader
+        title="Reports"
+        description={rangeLabel}
+        actions={
+          <>
+            <ExportCsvButton
+              filename="report.csv"
+              rows={rows}
+              columns={[
+                { label: "Date", value: (r) => r.date },
+                { label: "Task", value: (r) => r.task_name },
+                { label: "Project", value: (r) => r.project_name },
+                { label: "Client", value: (r) => r.client_name },
+                { label: "Duration", value: (r) => formatDuration(r.duration_seconds) },
+                { label: "Billable", value: (r) => r.billable },
+              ]}
+            />
+            <Button onClick={handleExportReport}>Download PDF</Button>
+          </>
+        }
+      />
+
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Tabs value={preset} onValueChange={(v) => setPreset(v as ReportPreset)}>
+            <TabsList>
+              <TabsTrigger value="daily">Day</TabsTrigger>
+              <TabsTrigger value="weekly">Week</TabsTrigger>
+              <TabsTrigger value="monthly">Month</TabsTrigger>
+              <TabsTrigger value="yearly">Year</TabsTrigger>
+              <TabsTrigger value="custom">Custom</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          {preset === "custom" && (
+            <div className="flex items-center gap-2">
+              <DatePicker value={customFrom} onChange={setCustomFrom} placeholder="From" />
+              <span className="text-sm text-muted-foreground">to</span>
+              <DatePicker value={customTo} onChange={setCustomTo} placeholder="To" />
+            </div>
+          )}
+        </div>
+        <ShowInSelector value={showIn} onChange={setShowIn} base={base} rates={rates} />
       </div>
 
       {loading || !summary ? (
         <Skeleton className="h-64" />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="border-l-4 border-l-blue-500">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Hours</CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-semibold">{formatDuration(summary.totalSeconds)}</CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-emerald-500">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-semibold">{formatCurrencyAmounts(summary.totalRevenue)}</CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-violet-500">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Projects</CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-semibold">{summary.projectCount}</CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-amber-500">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Clients</CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-semibold">{summary.clientCount}</CardContent>
-            </Card>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <Stat label="Hours" value={formatDuration(summary.totalSeconds)} />
+            <Stat
+              accent="info"
+              label="Revenue"
+              value={<Converted amounts={summary.totalRevenue} mode={showIn} base={base} rates={rates} />}
+              sub={showIn === "original" ? undefined : "Converted at your Settings rates"}
+            />
+            <Stat accent="good" label="Projects" value={summary.projectCount} />
+            <Stat accent="warn" label="Clients" value={summary.clientCount} />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Hours</CardTitle>
-              </CardHeader>
-              <CardContent className="h-64">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <section aria-label="Hours">
+              <h2 className="mb-2 text-sm font-semibold">Hours</h2>
+              <div className="h-60 rounded-md border bg-card p-3">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chart}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
                     <YAxis tickLine={false} axisLine={false} fontSize={12} width={32} />
                     <Tooltip formatter={(value) => `${value}h`} />
-                    <Bar dataKey="hours" fill="var(--chart-2)" radius={4} />
+                    <Bar dataKey="hours" fill="var(--chart-2)" radius={[2, 2, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Revenue</CardTitle>
-              </CardHeader>
-              <CardContent className={revenueCurrencies.length > 1 ? "space-y-4" : undefined}>
-                {revenueCurrencies.map((code) => (
-                  <div key={code}>
-                    {revenueCurrencies.length > 1 && (
-                      <p className="mb-1 text-xs font-medium text-muted-foreground">{code}</p>
-                    )}
-                    <div style={{ height: revenueCurrencies.length > 1 ? 256 / revenueCurrencies.length : 256 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={chart.map((c) => ({ label: c.label, revenue: c.revenue[code] ?? 0 }))}>
-                          <defs>
-                            <linearGradient id={`reportRevenueFill-${code}`} x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.4} />
-                              <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
-                          <YAxis tickLine={false} axisLine={false} fontSize={12} width={48} />
-                          <Tooltip formatter={(value) => formatCurrency(Number(value), code)} />
-                          <Area
-                            type="monotone"
-                            dataKey="revenue"
-                            stroke="var(--chart-1)"
-                            fill={`url(#reportRevenueFill-${code})`}
-                            strokeWidth={2}
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
+              </div>
+            </section>
+            <section aria-label="Revenue">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold">Revenue</h2>
+                {revenueCurrencies.length > 1 && (
+                  <div className="flex gap-1">
+                    {revenueCurrencies.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        aria-pressed={c === chartCode}
+                        onClick={() => setChartPick(c)}
+                        className={`rounded-sm border px-2 py-0.5 text-xs ${c === chartCode ? "border-primary font-semibold text-primary" : "text-muted-foreground"}`}
+                      >
+                        {c}
+                      </button>
+                    ))}
                   </div>
-                ))}
-              </CardContent>
-            </Card>
+                )}
+              </div>
+              <div className="h-60 rounded-md border bg-card p-3">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chart.map((c) => ({ label: c.label, revenue: c.revenue[chartCode] ?? 0 }))}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
+                    <YAxis tickLine={false} axisLine={false} fontSize={12} width={48} />
+                    <Tooltip formatter={(value) => formatCurrency(Number(value), chartCode)} />
+                    <Bar dataKey="revenue" fill="var(--chart-1)" radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
           </div>
 
           <DataTable
             columns={columns}
             data={rows}
             searchKey="task_name"
-            searchPlaceholder="Search tasks..."
+            searchPlaceholder="Search tasks"
             emptyMessage="No time logged in this range."
           />
         </>
       )}
-    </div>
+    </>
   )
 }

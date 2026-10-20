@@ -40,7 +40,7 @@ export function ExpenseFormDialog({ open, onOpenChange, expense, onSubmit }: Exp
     formState: { errors, isSubmitting },
   } = useForm<ExpenseInput>({
     resolver: zodResolver(expenseSchema) as Resolver<ExpenseInput>,
-    defaultValues: { currency: "USD" },
+    defaultValues: { currency: "BDT" },
   })
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export function ExpenseFormDialog({ open, onOpenChange, expense, onSubmit }: Exp
               date: expense.date,
               description: expense.description ?? "",
             }
-          : { currency: "USD" },
+          : { currency: "BDT" },
       )
     }
   }, [open, expense, reset])

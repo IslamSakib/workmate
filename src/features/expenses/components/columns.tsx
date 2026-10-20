@@ -1,6 +1,5 @@
 import { format } from "date-fns"
 import type { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -46,17 +45,13 @@ export function getExpenseColumns({ onEdit, onDelete }: ColumnActions): ColumnDe
       cell: ({ row }) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8">
-              <MoreHorizontal className="size-4" />
-            </Button>
+            <Button variant="ghost" size="sm" className="">More</Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => onEdit(row.original)}>
-              <Pencil className="size-4" />
               Edit
             </DropdownMenuItem>
             <DropdownMenuItem variant="destructive" onClick={() => onDelete(row.original)}>
-              <Trash2 className="size-4" />
               Delete
             </DropdownMenuItem>
           </DropdownMenuContent>

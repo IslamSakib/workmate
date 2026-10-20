@@ -4,6 +4,18 @@ export const PAGE_WIDTH = 595.28 // A4 width in points
 export const PAGE_HEIGHT = 841.89 // A4 height in points
 export const MARGIN = 48
 
+/** Standard PDF fonts only cover WinAnsi; anything else (e.g. the taka sign, Bengali text) would throw. */
+export function sanitize(text: string): string {
+  return text.replace(/[\u00A0\u202F]/g, " ").replace(/[^\u0020-\u007E\u00A1-\u00FF]/g, "?")
+}
+
+/** Money for PDFs: "BDT 89,000.00" with the ISO code instead of a symbol the font cannot draw. */
+export function pdfMoney(amount: number, code: string): string {
+  return sanitize(
+    new Intl.NumberFormat("en-US", { style: "currency", currency: code, currencyDisplay: "code" }).format(amount),
+  )
+}
+
 export interface PdfContext {
   doc: PDFDocument
   page: PDFPage
@@ -41,7 +53,7 @@ export function drawText(
   text: string,
   opts: { x: number; y: number; size?: number; bold?: boolean; color?: Color },
 ) {
-  ctx.page.drawText(text, {
+  ctx.page.drawText(sanitize(text), {
     x: opts.x,
     y: opts.y,
     size: opts.size ?? 10,
@@ -73,8 +85,8 @@ export function drawDivider(ctx: PdfContext) {
   ctx.page.drawLine({
     start: { x: MARGIN, y: ctx.cursorY },
     end: { x: PAGE_WIDTH - MARGIN, y: ctx.cursorY },
-    thickness: 0.75,
-    color: rgb(0.85, 0.85, 0.85),
+    thickness: 0.5,
+    color: rgb(0, 0, 0),
   })
   ctx.cursorY -= 16
 }
@@ -145,14 +157,14 @@ export function drawTable(
   }
   let x = MARGIN
   for (const col of columns) {
-    ctx.page.drawText(col.label, { x, y: ctx.cursorY, size: 9, font: ctx.bold, color: rgb(0.4, 0.4, 0.4) })
+    ctx.page.drawText(sanitize(col.label), { x, y: ctx.cursorY, size: 9, font: ctx.bold, color: rgb(0.4, 0.4, 0.4) })
     x += col.width
   }
   ctx.cursorY -= 8
   drawDivider(ctx)
 
   for (const row of rows) {
-    const cellLines = row.map((cell, i) => wrapText(ctx.font, cell, 9, columns[i].width - CELL_GAP))
+    const cellLines = row.map((cell, i) => wrapText(ctx.font, sanitize(cell), 9, columns[i].width - CELL_GAP))
     const lineCount = Math.max(1, ...cellLines.map((lines) => lines.length))
     const rowHeight = lineCount * LINE_HEIGHT + 6
 

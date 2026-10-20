@@ -22,6 +22,10 @@ Database changes are applied by running SQL files directly in the Supabase SQL e
 - `0009_advanced_invoicing.sql` — extends the `invoice_status` enum with `scheduled`/`partial`, adds `invoices.notes`/`scheduled_date`/`reminder_count`/`amount_paid`, and adds `invoice_payments` + `recurring_invoices` tables
 - `0011_single_user.sql` — reverts the app to single-user: drops `team_members`, `client_portal_access`, and `audit_logs` entirely, drops the timesheet-approval and client-approval columns/triggers, and replaces every RLS policy with a plain `auth.uid() = user_id` check. This is the current permission model — there is no role or portal concept anywhere anymore.
 
+- `0016_currency_and_payments.sql` — `settings.exchange_rates`/`rates_updated_at`/`next_invoice_seq`, agreed-rate columns (`projects`/`invoices`/`invoice_payments.fx_rate`), `invoices.kind` (standard/advance/milestone), `invoice_items.kind`/`credit_invoice_id`, payment triggers that keep `amount_paid` and `status` in sync, `next_invoice_number()`, drops the proposals RPCs
+- `0017_recurring_billing.sql` — server-side "until I stop it" recurring invoices: `generate_recurring_invoices()` (idempotent, catches up missed periods, optional daily pg_cron), fixed-amount or billable-tasks mode
+- `0018_invoice_rpcs.sql` — `create_invoice`/`update_invoice` RPCs: one transaction, server-computed totals, advance credits, guarded task linking. The app calls these; invoices cannot be saved until it is applied
+
 When changing schema going forward, add a new numbered migration rather than editing an existing one in place, since a real install already exists.
 
 ## Architecture
@@ -103,3 +107,13 @@ The app supports multiple currencies per-client/project (`currency_code` enum: U
 ### Deployment
 
 Static SPA build deployed to Hostinger shared hosting (no Node server in production); see `DEPLOYMENT.md`. `VITE_*` env vars are inlined at build time, so the app must be rebuilt whenever Supabase credentials change. Client-side routing requires the `.htaccess` rewrite in `public/` to reach `index.html` on full page loads.
+
+
+## Overhaul notes (ui-overhaul branch)
+
+- Removed features: Insights, Calendar, Retainers, Proposals, CRM pipeline. Kept: Recurring (now server-side, route `/recurring`).
+- UI rules: no icons, no gradients, no shadows. Palette is deep teal on warm paper with a dark teal sidebar (tokens in `src/index.css`). Invoice and receipt PDFs stay black and white (`src/lib/pdf/invoicePdf.ts`, ISO currency codes because the PDF font cannot draw the taka sign).
+- Shared UI: `PageHeader`, `Stat`/`Status`/`InvoiceStatus`, `EmptyState`/`ErrorState`, `Money`, `Converted`/`ShowInSelector`. `DataTable` renders stacked cards below `md`.
+- Currency: default currency (BDT) is the base; `settings.exchange_rates` are base-per-unit. A project can lock an agreed rate (`fx_rate`/`fx_base`), which wins over the table (`rateToBase` in `src/lib/currency.ts`). Totals are never summed across currencies; `Converted` shows the chosen currency plus the originals, and names any currency with no rate.
+- Invoices: `kind` standard/advance/milestone; the final invoice can credit paid advances (`advance_credit` lines). Payments are labelled Advance/Partial/Final/Full; status and `amount_paid` come from DB triggers. "Overdue" is derived from `due_date`, never stored.
+- Tests: `npm test` (Vitest) covers currency conversion and PDF text safety.

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { Paperclip, Trash2, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { deleteAttachment, getAttachmentUrl, listAttachments, uploadAttachment } from "../api"
@@ -74,7 +73,6 @@ export function AttachmentsPanel({ ownerType, ownerId }: AttachmentsPanelProps) 
           disabled={uploading}
           onClick={() => fileInputRef.current?.click()}
         >
-          <Upload className="size-3.5" />
           {uploading ? "Uploading..." : "Upload"}
         </Button>
         <input
@@ -100,7 +98,6 @@ export function AttachmentsPanel({ ownerType, ownerId }: AttachmentsPanelProps) 
             onClick={() => handleOpen(a)}
             className="flex min-w-0 items-center gap-1.5 truncate text-left hover:underline"
           >
-            <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
             <span className="truncate">{a.file_name}</span>
           </button>
           <Button
@@ -110,7 +107,6 @@ export function AttachmentsPanel({ ownerType, ownerId }: AttachmentsPanelProps) 
             className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
             onClick={() => setDeleting(a)}
           >
-            <Trash2 className="size-3.5" />
           </Button>
         </div>
       ))}

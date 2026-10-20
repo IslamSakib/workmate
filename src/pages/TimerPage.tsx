@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
-import { Pause, Play, Square } from "lucide-react"
 import { toast } from "sonner"
+import { PageHeader } from "@/components/shared/PageHeader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,7 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import { useClientsList } from "@/hooks/useClientsList"
 import { useProjectsList } from "@/hooks/useProjectsList"
 import { useElapsedSeconds, formatElapsed } from "@/hooks/useElapsedSeconds"
@@ -95,31 +94,18 @@ export default function TimerPage() {
 
   return (
     <div className="space-y-3">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">Timer</h1>
-          <InfoTooltip text="Type what you're working on, then click Start. We track your time down to the second and save it automatically." />
-        </div>
-        <p className="text-sm text-muted-foreground">Track your work in real time, billed to the second.</p>
-      </div>
+      <PageHeader title="Timer" description="Track your work in real time, billed to the second." />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_1fr]">
-        <Card className="relative overflow-hidden">
-          <div
-            className={cn(
-              "pointer-events-none absolute inset-0 -z-10 opacity-0 transition-opacity duration-700",
-              status === "running" && "bg-gradient-to-b from-success/10 via-transparent to-transparent opacity-100",
-              status === "paused" && "bg-gradient-to-b from-warning/10 via-transparent to-transparent opacity-100"
-            )}
-          />
+        <Card>
           <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-            <div className="flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground">
+            <div className="flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-xs font-medium text-muted-foreground">
               <span className={cn("size-2 rounded-full", meta.dot)} />
               {meta.label}
             </div>
 
             <div
-              className="flex items-center justify-center font-mono text-6xl font-bold tabular-nums tracking-tight sm:text-7xl lg:text-8xl"
+              className="flex items-center justify-center font-mono text-[clamp(2.75rem,14vw,6rem)] font-semibold tabular-nums tracking-tight"
               role="timer"
               aria-live="off"
             >
@@ -136,25 +122,21 @@ export default function TimerPage() {
             <div className="mt-3 flex gap-2">
               {isIdle && (
                 <Button size="lg" className="rounded-full px-8" onClick={handleStart} disabled={!sessionTaskName.trim()}>
-                  <Play className="size-4" />
                   Start
                 </Button>
               )}
               {status === "running" && (
                 <Button size="lg" variant="outline" className="rounded-full px-6" onClick={pause}>
-                  <Pause className="size-4" />
                   Pause
                 </Button>
               )}
               {status === "paused" && (
                 <Button size="lg" className="rounded-full px-6" onClick={resume}>
-                  <Play className="size-4" />
                   Resume
                 </Button>
               )}
               {!isIdle && (
                 <Button size="lg" variant="destructive" className="rounded-full px-6" onClick={handleStop}>
-                  <Square className="size-4" />
                   Stop
                 </Button>
               )}

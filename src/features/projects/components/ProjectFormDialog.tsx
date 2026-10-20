@@ -15,7 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { CURRENCIES } from "@/lib/currency"
+import { CURRENCIES, formatCurrency } from "@/lib/currency"
+import { useCurrencySettings } from "@/hooks/useCurrencySettings"
 import { AttachmentsPanel } from "@/features/attachments/components/AttachmentsPanel"
 import { useClientsList } from "@/hooks/useClientsList"
 import { projectSchema, type ProjectInput } from "../schema"
@@ -45,6 +46,7 @@ export function ProjectFormDialog({
   onSubmit,
 }: ProjectFormDialogProps) {
   const clients = useClientsList()
+  const { base, rates } = useCurrencySettings()
   const {
     register,
     handleSubmit,
@@ -54,7 +56,7 @@ export function ProjectFormDialog({
     formState: { errors, isSubmitting },
   } = useForm<ProjectInput>({
     resolver: zodResolver(projectSchema) as Resolver<ProjectInput>,
-    defaultValues: { currency: "USD", status: "active" },
+    defaultValues: { currency: "BDT", status: "active" },
   })
 
   useEffect(() => {
@@ -67,19 +69,23 @@ export function ProjectFormDialog({
               hourly_rate: project.hourly_rate,
               fixed_price: project.fixed_price,
               currency: project.currency,
+              fx_rate: project.fx_rate,
+              fx_base: project.fx_base,
               status: project.status,
               start_date: project.start_date,
               due_date: project.due_date,
               notes: project.notes ?? "",
             }
-          : { currency: "USD", status: "active", ...initialValues },
+          : { currency: "BDT", status: "active", ...initialValues },
       )
     }
   }, [open, project, reset])
 
   const submit = async (values: ProjectInput) => {
     try {
-      await onSubmit(values)
+      // The agreed rate only makes sense for a foreign currency; store which base it is relative to.
+      const foreign = values.currency !== base
+      await onSubmit({ ...values, fx_rate: foreign ? values.fx_rate : null, fx_base: foreign && values.fx_rate ? base : null })
       onOpenChange(false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save project")
@@ -163,6 +169,44 @@ export function ProjectFormDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {watch("currency") !== base && (
+            <fieldset className="space-y-2 rounded-md border border-primary/40 bg-accent p-3 sm:col-span-2">
+              <legend className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Exchange rate
+              </legend>
+              <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
+                <span className="font-semibold tabular-nums">1 {watch("currency")} =</span>
+                <Input
+                  id="fx_rate"
+                  type="number"
+                  step="any"
+                  min="0"
+                  inputMode="decimal"
+                  aria-label={`Agreed rate, ${base} per ${watch("currency")}`}
+                  placeholder={rates[watch("currency")] ? String(rates[watch("currency")]) : "Rate"}
+                  {...register("fx_rate")}
+                />
+                <span className="font-semibold">{base}</span>
+              </div>
+              {errors.fx_rate && <p className="text-sm text-destructive">{errors.fx_rate.message}</p>}
+              <p className="text-xs text-muted-foreground">
+                Optional. Lock the rate you agreed with the client; this project is converted at it for every
+                task, invoice and report.{" "}
+                {rates[watch("currency")]
+                  ? `Leave empty to use your Settings rate (${rates[watch("currency")]}).`
+                  : "No rate is set in Settings for this currency yet."}
+              </p>
+              {watch("fixed_price") && watch("fx_rate") ? (
+                <p className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Project value at this rate</span>
+                  <b className="tabular-nums">
+                    {formatCurrency(Number(watch("fixed_price")) * Number(watch("fx_rate")), base)}
+                  </b>
+                </p>
+              ) : null}
+            </fieldset>
+          )}
 
           <div className="space-y-2">
             <Label>Start date</Label>

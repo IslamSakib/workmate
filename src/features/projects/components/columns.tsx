@@ -1,7 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Status, type StatusTone } from "@/components/shared/Status"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,11 +15,11 @@ interface ColumnActions {
   onDelete: (project: ProjectWithClient) => void
 }
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-  active: "default",
-  paused: "secondary",
-  completed: "outline",
-  cancelled: "destructive",
+const STATUS_TONE: Record<string, StatusTone> = {
+  active: "good",
+  paused: "neutral",
+  completed: "info",
+  cancelled: "bad",
 }
 
 export function getProjectColumns({ onEdit, onDelete }: ColumnActions): ColumnDef<ProjectWithClient, unknown>[] {
@@ -34,21 +33,29 @@ export function getProjectColumns({ onEdit, onDelete }: ColumnActions): ColumnDe
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }) => (
-        <Badge variant={STATUS_VARIANT[row.original.status]} className="capitalize">
-          {row.original.status}
-        </Badge>
-      ),
+      cell: ({ row }) => <Status tone={STATUS_TONE[row.original.status]}>{row.original.status}</Status>,
     },
     {
       id: "rate",
       header: "Rate",
-      cell: ({ row }) =>
-        row.original.hourly_rate
-          ? `${formatCurrency(row.original.hourly_rate, row.original.currency)}/hr`
-          : row.original.fixed_price
-            ? `${formatCurrency(row.original.fixed_price, row.original.currency)} fixed`
-            : "—",
+      cell: ({ row }) => {
+        const p = row.original
+        const price = p.hourly_rate
+          ? `${formatCurrency(p.hourly_rate, p.currency)}/hr`
+          : p.fixed_price
+            ? `${formatCurrency(p.fixed_price, p.currency)} fixed`
+            : "-"
+        return (
+          <div>
+            <div className="tabular-nums">{price}</div>
+            {p.fx_rate && p.fx_base && (
+              <div className="text-xs text-muted-foreground tabular-nums">
+                1 {p.currency} = {p.fx_rate} {p.fx_base}
+              </div>
+            )}
+          </div>
+        )
+      },
     },
     {
       accessorKey: "due_date",
@@ -62,17 +69,13 @@ export function getProjectColumns({ onEdit, onDelete }: ColumnActions): ColumnDe
       cell: ({ row }) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8">
-              <MoreHorizontal className="size-4" />
-            </Button>
+            <Button variant="ghost" size="sm" className="">More</Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => onEdit(row.original)}>
-              <Pencil className="size-4" />
               Edit
             </DropdownMenuItem>
             <DropdownMenuItem variant="destructive" onClick={() => onDelete(row.original)}>
-              <Trash2 className="size-4" />
               Delete
             </DropdownMenuItem>
           </DropdownMenuContent>

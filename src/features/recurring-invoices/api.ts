@@ -1,8 +1,5 @@
-import { addMonths, addWeeks, format } from "date-fns"
 import { supabase } from "@/lib/supabaseClient"
 import { useAuthStore } from "@/store/authStore"
-import { createInvoice, listBillableTasks } from "@/features/invoices/api"
-import type { RecurringInvoiceFrequency } from "@/types/database"
 import type { RecurringInvoiceInput } from "./schema"
 import type { RecurringInvoice, RecurringInvoiceWithRelations } from "./types"
 
@@ -15,6 +12,16 @@ export async function listRecurringInvoices(): Promise<RecurringInvoiceWithRelat
   return (data ?? []) as unknown as RecurringInvoiceWithRelations[]
 }
 
+function toRow(input: RecurringInvoiceInput) {
+  return {
+    ...input,
+    amount: input.billing_mode === "fixed" ? (input.amount ?? null) : null,
+    ends_on: input.ends_on || null,
+    description: input.description || null,
+    notes: input.notes || null,
+  }
+}
+
 export async function createRecurringInvoice(input: RecurringInvoiceInput): Promise<RecurringInvoice> {
   const accountId = useAuthStore.getState().accountId
   const { data: userData } = await supabase.auth.getUser()
@@ -22,17 +29,36 @@ export async function createRecurringInvoice(input: RecurringInvoiceInput): Prom
 
   const { data, error } = await supabase
     .from("recurring_invoices")
-    .insert({ ...input, user_id: accountId, created_by: userData.user.id })
+    .insert({
+      ...toRow(input),
+      next_run_date: input.start_date,
+      user_id: accountId,
+      created_by: userData.user.id,
+      active: true,
+    })
     .select()
     .single()
   if (error) throw error
   return data
 }
 
-export async function updateRecurringInvoice(id: string, input: RecurringInvoiceInput): Promise<RecurringInvoice> {
-  const { data, error } = await supabase.from("recurring_invoices").update(input).eq("id", id).select().single()
+/** The start date is fixed once periods have been generated, since run dates are derived from it. */
+export async function updateRecurringInvoice(
+  existing: RecurringInvoice,
+  input: RecurringInvoiceInput,
+): Promise<RecurringInvoice> {
+  const row = toRow(input)
+  const patch: Partial<typeof row> & { next_run_date?: string } = { ...row }
+  if (existing.periods_generated > 0) delete patch.start_date
+  else patch.next_run_date = input.start_date
+  const { data, error } = await supabase.from("recurring_invoices").update(patch).eq("id", existing.id).select().single()
   if (error) throw error
   return data
+}
+
+export async function setRecurringActive(id: string, active: boolean): Promise<void> {
+  const { error } = await supabase.from("recurring_invoices").update({ active }).eq("id", id)
+  if (error) throw error
 }
 
 export async function deleteRecurringInvoice(id: string): Promise<void> {
@@ -40,78 +66,9 @@ export async function deleteRecurringInvoice(id: string): Promise<void> {
   if (error) throw error
 }
 
-function advance(date: Date, frequency: RecurringInvoiceFrequency): Date {
-  if (frequency === "weekly") return addWeeks(date, 1)
-  if (frequency === "monthly") return addMonths(date, 1)
-  return addMonths(date, 3)
-}
-
-/**
- * Generates invoices for any active template whose next_run_date has
- * passed, billing tasks for the period since the prior run. Called lazily
- * on app load (there's no server cron) — see AppShell. Skips creating an
- * invoice when there are no billable tasks for the period but still
- * advances next_run_date so the template doesn't get stuck reprocessing an
- * empty period forever.
- */
+/** Creates every invoice that is due (server-side, idempotent). Returns how many were created. */
 export async function generateDueRecurringInvoices(): Promise<number> {
-  const today = format(new Date(), "yyyy-MM-dd")
-  const { data: due, error } = await supabase
-    .from("recurring_invoices")
-    .select("*")
-    .eq("active", true)
-    .lte("next_run_date", today)
+  const { data, error } = await supabase.rpc("generate_recurring_invoices")
   if (error) throw error
-  if (!due || due.length === 0) return 0
-
-  let generated = 0
-  for (const template of due) {
-    const nextRunDate = new Date(template.next_run_date)
-    const periodStart = format(
-      frequencyBack(nextRunDate, template.frequency as RecurringInvoiceFrequency),
-      "yyyy-MM-dd",
-    )
-    const periodEnd = template.next_run_date
-
-    const items = await listBillableTasks({
-      clientId: template.client_id,
-      projectId: template.project_id,
-      periodStart,
-      periodEnd,
-    })
-
-    let lastGeneratedInvoiceId = template.last_generated_invoice_id
-    if (items.length > 0) {
-      const invoice = await createInvoice(
-        {
-          invoice_number: `REC-${format(nextRunDate, "yyyyMM")}-${template.id.slice(0, 6)}`,
-          client_id: template.client_id,
-          project_id: template.project_id,
-          currency: template.currency,
-          status: "draft",
-          issue_date: today,
-          due_date: null,
-          period_start: periodStart,
-          period_end: periodEnd,
-        },
-        items,
-      )
-      lastGeneratedInvoiceId = invoice.id
-      generated += 1
-    }
-
-    const updatedNextRunDate = format(advance(nextRunDate, template.frequency as RecurringInvoiceFrequency), "yyyy-MM-dd")
-    await supabase
-      .from("recurring_invoices")
-      .update({ next_run_date: updatedNextRunDate, last_generated_invoice_id: lastGeneratedInvoiceId })
-      .eq("id", template.id)
-  }
-
-  return generated
-}
-
-function frequencyBack(date: Date, frequency: RecurringInvoiceFrequency): Date {
-  if (frequency === "weekly") return addWeeks(date, -1)
-  if (frequency === "monthly") return addMonths(date, -1)
-  return addMonths(date, -3)
+  return data ?? 0
 }

@@ -1,40 +1,42 @@
-import {
-  LayoutDashboard,
-  Users,
-  FolderKanban,
-  ListChecks,
-  Timer,
-  Calendar,
-  BarChart3,
-  FileText,
-  FileSignature,
-  Repeat,
-  CalendarSync,
-  Receipt,
-  Settings,
-  LineChart,
-  type LucideIcon,
-} from "lucide-react"
-
 export interface NavItem {
   label: string
   to: string
-  icon: LucideIcon
 }
 
-export const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
-  { label: "Clients", to: "/clients", icon: Users },
-  { label: "Proposals", to: "/proposals", icon: FileSignature },
-  { label: "Projects", to: "/projects", icon: FolderKanban },
-  { label: "Tasks", to: "/tasks", icon: ListChecks },
-  { label: "Timer", to: "/timer", icon: Timer },
-  { label: "Calendar", to: "/calendar", icon: Calendar },
-  { label: "Reports", to: "/reports", icon: BarChart3 },
-  { label: "Insights", to: "/insights", icon: LineChart },
-  { label: "Invoices", to: "/invoices", icon: FileText },
-  { label: "Recurring Invoices", to: "/recurring-invoices", icon: CalendarSync },
-  { label: "Retainers", to: "/retainers", icon: Repeat },
-  { label: "Expenses", to: "/expenses", icon: Receipt },
-  { label: "Settings", to: "/settings", icon: Settings },
+export interface NavGroup {
+  heading: string
+  items: NavItem[]
+}
+
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    heading: "Work",
+    items: [
+      { label: "Dashboard", to: "/dashboard" },
+      { label: "Timer", to: "/timer" },
+      { label: "Tasks", to: "/tasks" },
+      { label: "Projects", to: "/projects" },
+    ],
+  },
+  {
+    heading: "Money",
+    items: [
+      { label: "Invoices", to: "/invoices" },
+      { label: "Recurring", to: "/recurring" },
+      { label: "Expenses", to: "/expenses" },
+      { label: "Reports", to: "/reports" },
+    ],
+  },
+  { heading: "People", items: [{ label: "Clients", to: "/clients" }] },
+  { heading: "Account", items: [{ label: "Settings", to: "/settings" }] },
+]
+
+export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items)
+
+// Primary mobile tabs; every other page lives under "More".
+export const MOBILE_TABS: NavItem[] = [
+  { label: "Today", to: "/dashboard" },
+  { label: "Timer", to: "/timer" },
+  { label: "Invoices", to: "/invoices" },
+  { label: "Clients", to: "/clients" },
 ]
