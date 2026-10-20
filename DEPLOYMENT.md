@@ -34,6 +34,10 @@ This produces a static `dist/` folder (HTML/CSS/JS only — no Node server requi
 3. Ensure the `.htaccess` file (already included in `public/`, so it ends up in `dist/`) is uploaded too — it rewrites all unmatched routes to `index.html` so React Router's client-side routes (`/dashboard`, `/clients`, etc.) work on full page loads/refreshes instead of 404ing.
 4. If deploying under a subdirectory (e.g. `yourdomain.com/app/`), no extra Vite config is needed since the app uses root-relative asset paths by default; just confirm the `.htaccess` rewrite rule still resolves correctly for that path.
 
+### Faster: `npm run deploy`
+
+`scripts/deploy.sh` builds and uploads over SSH. One-time setup: add the public key from `~/.ssh/workmate_deploy.pub` in hPanel > Advanced > SSH Access > Add SSH key. The private key never goes in the repo. If the site folder differs, run with `DEPLOY_PATH=<path relative to home>`.
+
 ## 5. HTTPS
 
 Enable Hostinger's free SSL (Let's Encrypt) for the domain — Supabase Auth requires HTTPS in production for secure cookie/session handling.
