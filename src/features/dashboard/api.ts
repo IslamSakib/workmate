@@ -56,7 +56,12 @@ export interface TaskWithProject {
     fx_rate: number | null
     fx_base: CurrencyCode | null
   } | null
-  clients: { client_name: string } | null
+  clients: {
+    client_name: string
+    currency: CurrencyCode
+    fx_rate: number | null
+    fx_base: CurrencyCode | null
+  } | null
 }
 
 export async function getYearTasks(): Promise<TaskWithProject[]> {
@@ -64,7 +69,7 @@ export async function getYearTasks(): Promise<TaskWithProject[]> {
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, task_name, date, duration_seconds, billable, created_at, project_id, client_id, projects(project_name, hourly_rate, currency, fx_rate, fx_base), clients(client_name)",
+      "id, task_name, date, duration_seconds, billable, created_at, project_id, client_id, projects(project_name, hourly_rate, currency, fx_rate, fx_base), clients(client_name, currency, fx_rate, fx_base)",
     )
     .gte("date", format(yearStart, "yyyy-MM-dd"))
     .order("date", { ascending: false })
@@ -110,7 +115,13 @@ function sumWithin(tasks: TaskWithProject[], flatFees: FixedFeeRevenueRow[], fro
   let revenueBase: BaseTotal = EMPTY_BASE_TOTAL
   for (const task of filtered) {
     const code = currencyFor(task)
-    const agreed = task.projects ? { rate: task.projects.fx_rate, base: task.projects.fx_base } : null
+    // Project rate wins, then the client's contract rate (only if it is for this currency), then the Settings table.
+    const projectRate = task.projects?.fx_rate ? { rate: task.projects.fx_rate, base: task.projects.fx_base } : null
+    const clientRate =
+      task.clients?.fx_rate && task.clients.currency === code
+        ? { rate: task.clients.fx_rate, base: task.clients.fx_base }
+        : null
+    const agreed = projectRate ?? clientRate
     revenueBase = addBaseTotal(revenueBase, revenueFor(task), code, rateToBase(code, ctx.base, ctx.rates, agreed))
   }
   for (const fee of flatFees.filter((f) => isWithinInterval(new Date(f.issue_date), { start: from, end: now }))) {

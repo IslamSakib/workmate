@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CURRENCIES } from "@/lib/currency"
+import { ContractRateField } from "@/components/shared/ContractRateField"
+import { useCurrencySettings } from "@/hooks/useCurrencySettings"
 import { useClientsList } from "@/hooks/useClientsList"
 import { useProjectsList } from "@/hooks/useProjectsList"
 import { recurringInvoiceSchema, type RecurringInvoiceInput } from "../schema"
@@ -40,6 +42,7 @@ interface Props {
 
 export function RecurringInvoiceFormDialog({ open, onOpenChange, recurringInvoice, onSubmit }: Props) {
   const clients = useClientsList()
+  const { base, rates } = useCurrencySettings()
   const projects = useProjectsList()
   const {
     register,
@@ -69,6 +72,8 @@ export function RecurringInvoiceFormDialog({ open, onOpenChange, recurringInvoic
             due_days: recurringInvoice.due_days,
             issue_as: recurringInvoice.issue_as,
             ends_on: recurringInvoice.ends_on,
+            fx_rate: recurringInvoice.fx_rate,
+            fx_base: recurringInvoice.fx_base,
             notes: recurringInvoice.notes ?? "",
           }
         : { ...DEFAULTS, start_date: today(), ends_on: null },
@@ -77,7 +82,8 @@ export function RecurringInvoiceFormDialog({ open, onOpenChange, recurringInvoic
 
   const submit = async (values: RecurringInvoiceInput) => {
     try {
-      await onSubmit(values)
+      const foreign = values.currency !== base
+      await onSubmit({ ...values, fx_rate: foreign ? values.fx_rate : null, fx_base: foreign && values.fx_rate ? base : null })
       onOpenChange(false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save")
@@ -170,6 +176,14 @@ export function RecurringInvoiceFormDialog({ open, onOpenChange, recurringInvoic
               </div>
             </>
           )}
+
+          <ContractRateField
+            currency={watch("currency")}
+            base={base}
+            tableRate={rates[watch("currency")]}
+            inputProps={register("fx_rate")}
+            error={errors.fx_rate?.message}
+          />
 
           <div className="space-y-2">
             <Label>Repeats</Label>

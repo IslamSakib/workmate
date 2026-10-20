@@ -182,13 +182,12 @@ export default function ReportsPage() {
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <Stat label="Hours" value={formatDuration(summary.totalSeconds)} />
             <Stat
-              accent="info"
               label="Revenue"
               value={<Converted amounts={summary.totalRevenue} mode={showIn} base={base} rates={rates} />}
               sub={showIn === "original" ? undefined : "Converted at your Settings rates"}
             />
-            <Stat accent="good" label="Projects" value={summary.projectCount} />
-            <Stat accent="warn" label="Clients" value={summary.clientCount} />
+            <Stat label="Projects" value={summary.projectCount} />
+            <Stat label="Clients" value={summary.clientCount} />
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

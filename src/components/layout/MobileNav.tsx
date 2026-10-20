@@ -14,7 +14,7 @@ export function MobileNav({ onMore }: { onMore: () => void }) {
           key={t.to}
           to={t.to}
           className={({ isActive }) =>
-            cn(base, isActive ? "font-semibold text-primary shadow-[inset_0_3px_0_var(--primary)]" : "text-muted-foreground")
+            cn(base, isActive ? "font-semibold text-primary bg-accent" : "text-muted-foreground")
           }
         >
           {t.label}

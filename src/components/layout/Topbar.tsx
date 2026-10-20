@@ -60,16 +60,16 @@ export function Topbar({
           <SidebarNav onNavigate={() => setMoreOpen(false)} />
         </SheetContent>
       </Sheet>
-      <div className="flex items-center gap-1">
+      <div className="flex min-w-0 shrink-0 items-center gap-1">
         <Button variant="outline" size="sm" className="border-sidebar-border bg-transparent text-inherit lg:border-border" onClick={onOpenSearch}>
           Search <kbd className="ml-2 hidden rounded border px-1.5 text-xs sm:inline">Ctrl K</kbd>
         </Button>
-        <Button variant="ghost" size="sm" className="hover:bg-sidebar-accent/60 lg:hover:bg-accent" onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
+        <Button variant="ghost" size="sm" className="hover:bg-sidebar-accent lg:hover:bg-accent" onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
           {resolvedTheme === "dark" ? "Light" : "Dark"}
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="hidden max-w-44 truncate sm:inline-flex">
+            <Button variant="ghost" size="sm" className="hidden max-w-36 truncate sm:inline-flex xl:max-w-56">
               {user?.email}
             </Button>
           </DropdownMenuTrigger>

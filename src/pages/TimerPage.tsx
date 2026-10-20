@@ -19,7 +19,7 @@ import { useTimerStore } from "@/store/timerStore"
 import { listRecentSessions, type RecentSession } from "@/features/timer/api"
 
 const STATUS_META = {
-  idle: { label: "Idle", dot: "bg-muted-foreground/40" },
+  idle: { label: "Idle", dot: "bg-muted-foreground" },
   running: { label: "Recording", dot: "bg-success animate-pulse" },
   paused: { label: "Paused", dot: "bg-warning" },
 } as const
@@ -27,7 +27,7 @@ const STATUS_META = {
 /** Remounts the changed digit on every tick so it animates in, giving the counter a live "ticking" feel. */
 function AnimatedDigit({ char }: { char: string }) {
   if (char === ":") {
-    return <span className="mx-0.5 text-muted-foreground/40 sm:mx-1">:</span>
+    return <span className="mx-0.5 text-muted-foreground sm:mx-1">:</span>
   }
   return (
     <span className="relative inline-block w-[0.62em] overflow-hidden text-center">

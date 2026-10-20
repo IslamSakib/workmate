@@ -139,7 +139,7 @@ export default function TasksPage() {
           emptyMessage="No tasks yet. Log your first task to get started."
           enableRowSelection
           renderBulkActions={(selected, clearSelection) => (
-            <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/50 px-3 py-2">
+            <div className="flex items-center justify-between gap-2 rounded-md border bg-muted px-3 py-2">
               <span className="text-sm font-medium">{selected.length} selected</span>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={clearSelection}>

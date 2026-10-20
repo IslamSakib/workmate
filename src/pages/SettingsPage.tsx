@@ -151,11 +151,11 @@ export default function SettingsPage() {
               </Select>
             </div>
             <fieldset className="space-y-2 rounded-md border p-3">
-              <legend className="px-1 text-sm font-medium">Exchange rates</legend>
+              <legend className="px-1 text-sm font-medium">Fallback exchange rates</legend>
               <p className="text-xs text-muted-foreground">
                 How much one unit of each currency is worth in your default currency
-                ({preferencesForm.watch("default_currency")}). Used to show combined totals. A project can
-                lock its own agreed rate instead.
+                ({preferencesForm.watch("default_currency")}). Used only when a client or project has no
+                contract rate of its own. Set contract rates on each client (and project).
               </p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {RATE_FIELDS.filter((c) => c !== preferencesForm.watch("default_currency")).map((c) => (

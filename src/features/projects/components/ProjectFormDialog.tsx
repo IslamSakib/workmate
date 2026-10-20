@@ -171,7 +171,7 @@ export function ProjectFormDialog({
           </div>
 
           {watch("currency") !== base && (
-            <fieldset className="space-y-2 rounded-md border border-primary/40 bg-accent p-3 sm:col-span-2">
+            <fieldset className="space-y-2 rounded-md border border-primary bg-accent p-3 sm:col-span-2">
               <legend className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Exchange rate
               </legend>
@@ -191,8 +191,8 @@ export function ProjectFormDialog({
               </div>
               {errors.fx_rate && <p className="text-sm text-destructive">{errors.fx_rate.message}</p>}
               <p className="text-xs text-muted-foreground">
-                Optional. Lock the rate you agreed with the client; this project is converted at it for every
-                task, invoice and report.{" "}
+                Optional. Overrides the client's contract rate for this project; it is used for every task,
+                invoice and report.{" "}
                 {rates[watch("currency")]
                   ? `Leave empty to use your Settings rate (${rates[watch("currency")]}).`
                   : "No rate is set in Settings for this currency yet."}

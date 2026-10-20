@@ -14,6 +14,8 @@ export const recurringInvoiceSchema = z
     issue_as: z.enum(["draft", "sent"]),
     ends_on: z.string().nullable().optional(),
     notes: z.string().optional(),
+    fx_rate: z.preprocess((v) => (v === "" || v == null || v === 0 || v === "0" ? null : v), z.coerce.number().positive("Rate must be greater than 0").nullable().optional()),
+    fx_base: z.enum(["USD", "BDT", "EUR", "GBP", "PHP"]).nullable().optional(),
   })
   .refine((v) => v.billing_mode !== "fixed" || (v.amount ?? 0) > 0, {
     path: ["amount"],

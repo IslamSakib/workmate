@@ -7,7 +7,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     <nav aria-label="Primary" className="flex flex-1 flex-col gap-5 overflow-y-auto p-3">
       {NAV_GROUPS.map((group) => (
         <div key={group.heading}>
-          <p className="px-2 pb-1 text-xs uppercase tracking-wide text-sidebar-foreground/60">{group.heading}</p>
+          <p className="px-2 pb-1 text-xs uppercase tracking-wide text-sidebar-muted">{group.heading}</p>
           {group.items.map((item) => (
             <NavLink
               key={item.to}
@@ -18,7 +18,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                   "block rounded-md px-2 py-2 text-sm transition-colors lg:py-1.5",
                   isActive
                     ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 )
               }
             >

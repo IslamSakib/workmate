@@ -37,6 +37,9 @@ export interface Database {
           phone: string | null
           currency: CurrencyCode
           country: string | null
+          /** Contract rate: 1 unit of `currency` = fx_rate units of fx_base. Null = use the Settings rate. */
+          fx_rate: number | null
+          fx_base: CurrencyCode | null
           notes: string | null
           pipeline_stage: ClientPipelineStage
           created_at: string
@@ -237,6 +240,8 @@ export interface Database {
           issue_as: "draft" | "sent"
           /** Null = runs until the template is paused or deleted. */
           ends_on: string | null
+          fx_rate: number | null
+          fx_base: CurrencyCode | null
           notes: string | null
           created_at: string
           updated_at: string

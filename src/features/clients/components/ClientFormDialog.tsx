@@ -1,6 +1,6 @@
 import { useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
+import { useForm, type Resolver } from "react-hook-form"
 import { toast } from "sonner"
 import { FormDialog } from "@/components/shared/FormDialog"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CURRENCIES } from "@/lib/currency"
+import { ContractRateField } from "@/components/shared/ContractRateField"
+import { useCurrencySettings } from "@/hooks/useCurrencySettings"
 import { AttachmentsPanel } from "@/features/attachments/components/AttachmentsPanel"
 import { clientSchema, type ClientInput } from "../schema"
 import type { Client } from "../types"
@@ -27,6 +29,7 @@ interface ClientFormDialogProps {
 }
 
 export function ClientFormDialog({ open, onOpenChange, client, onSubmit }: ClientFormDialogProps) {
+  const { base, rates } = useCurrencySettings()
   const {
     register,
     handleSubmit,
@@ -35,7 +38,7 @@ export function ClientFormDialog({ open, onOpenChange, client, onSubmit }: Clien
     watch,
     formState: { errors, isSubmitting },
   } = useForm<ClientInput>({
-    resolver: zodResolver(clientSchema),
+    resolver: zodResolver(clientSchema) as Resolver<ClientInput>,
     defaultValues: { currency: "BDT" },
   })
 
@@ -50,6 +53,8 @@ export function ClientFormDialog({ open, onOpenChange, client, onSubmit }: Clien
               phone: client.phone ?? "",
               currency: client.currency,
               country: client.country ?? "",
+              fx_rate: client.fx_rate,
+              fx_base: client.fx_base,
               notes: client.notes ?? "",
             }
           : { currency: "BDT" },
@@ -59,7 +64,8 @@ export function ClientFormDialog({ open, onOpenChange, client, onSubmit }: Clien
 
   const submit = async (values: ClientInput) => {
     try {
-      await onSubmit(values)
+      const foreign = values.currency !== base
+      await onSubmit({ ...values, fx_rate: foreign ? values.fx_rate : null, fx_base: foreign && values.fx_rate ? base : null })
       onOpenChange(false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save client")
@@ -114,6 +120,13 @@ export function ClientFormDialog({ open, onOpenChange, client, onSubmit }: Clien
             <Label htmlFor="country">Country</Label>
             <Input id="country" {...register("country")} />
           </div>
+          <ContractRateField
+            currency={watch("currency")}
+            base={base}
+            tableRate={rates[watch("currency")]}
+            inputProps={register("fx_rate")}
+            error={errors.fx_rate?.message}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="notes">Notes</Label>

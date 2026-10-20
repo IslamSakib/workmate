@@ -296,8 +296,8 @@ export default function InvoicesPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Stat accent="warn" label="Owed to you" value={<Money amounts={owed} />} sub={`${open.length} open invoices, balance after payments`} />
-            <Stat accent="info" label="Overdue" value={<Money amounts={lateAmounts} />} sub={`${late.length} past their due date`} />
+            <Stat label="Owed to you" value={<Money amounts={owed} />} sub={`${open.length} open invoices, balance after payments`} />
+            <Stat label="Overdue" value={<Money amounts={lateAmounts} />} sub={`${late.length} past their due date`} />
           </div>
 
           <div role="tablist" aria-label="Filter by status" className="flex gap-5 overflow-x-auto overflow-y-hidden border-b [scrollbar-width:none]">
