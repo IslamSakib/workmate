@@ -20,9 +20,9 @@ export function TimeField({ value, onChange }: TimeFieldProps) {
     onChange(`${pad((hour12 % 12) + (isPm ? 12 : 0))}:${pad(minute)}`)
 
   return (
-    <div className="grid grid-cols-[1fr_1fr_1fr] gap-2">
+    <div className="grid grid-cols-3 gap-1.5">
       <Select value={h12 === null ? "" : String(h12)} onValueChange={(v) => emit(Number(v), m ?? 0, pm)}>
-        <SelectTrigger className="w-full" aria-label="Hour">
+        <SelectTrigger className="w-full min-w-0 gap-1 px-2" aria-label="Hour">
           <SelectValue placeholder="Hr" />
         </SelectTrigger>
         <SelectContent className="max-h-60">
@@ -34,7 +34,7 @@ export function TimeField({ value, onChange }: TimeFieldProps) {
         </SelectContent>
       </Select>
       <Select value={m === null ? "" : pad(m)} onValueChange={(v) => emit(h12 ?? 12, Number(v), pm)}>
-        <SelectTrigger className="w-full" aria-label="Minute">
+        <SelectTrigger className="w-full min-w-0 gap-1 px-2" aria-label="Minute">
           <SelectValue placeholder="Min" />
         </SelectTrigger>
         <SelectContent className="max-h-60">
@@ -46,8 +46,8 @@ export function TimeField({ value, onChange }: TimeFieldProps) {
         </SelectContent>
       </Select>
       <Select value={h24 === null ? "" : pm ? "PM" : "AM"} onValueChange={(v) => emit(h12 ?? 12, m ?? 0, v === "PM")}>
-        <SelectTrigger className="w-full" aria-label="AM or PM">
-          <SelectValue placeholder="AM/PM" />
+        <SelectTrigger className="w-full min-w-0 gap-1 px-2" aria-label="AM or PM">
+          <SelectValue placeholder="--" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="AM">AM</SelectItem>
