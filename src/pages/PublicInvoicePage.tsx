@@ -34,7 +34,7 @@ export default function PublicInvoicePage() {
   }, [token])
 
   return (
-    <div className="min-h-svh bg-muted/40 px-4 py-10">
+    <div className="min-h-svh bg-muted px-4 py-10">
       <div className="mx-auto max-w-2xl space-y-4">
         <div className="text-center text-xl font-semibold tracking-tight">WorkMate</div>
 
@@ -88,7 +88,7 @@ export default function PublicInvoicePage() {
               {invoice.items.length > 0 && (
                 <div className="overflow-x-auto rounded-md border">
                   <table className="w-full text-sm">
-                    <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+                    <thead className="bg-muted text-left text-xs text-muted-foreground">
                       <tr>
                         <th className="px-3 py-2 font-medium">Item</th>
                         <th className="px-3 py-2 font-medium">Date</th>
@@ -115,7 +115,7 @@ export default function PublicInvoicePage() {
               )}
 
               {invoice.notes && (
-                <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                <div className="rounded-md border bg-muted p-3 text-sm">
                   <p className="mb-1 text-xs font-medium text-muted-foreground">Notes</p>
                   {invoice.notes}
                 </div>

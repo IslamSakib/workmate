@@ -8,9 +8,19 @@ import {
   isWithinInterval,
 } from "date-fns"
 import { supabase } from "@/lib/supabaseClient"
-import { listRetainers, getRetainerUsage } from "@/features/retainers/api"
 import { listFixedFeeRevenue } from "@/features/invoices/api"
-import { addCurrencyAmounts, subtractCurrencyAmounts, sumByCurrency, roundAmounts } from "@/lib/currency"
+import {
+  addBaseTotal,
+  addCurrencyAmounts,
+  convertAmounts,
+  EMPTY_BASE_TOTAL,
+  rateToBase,
+  roundAmounts,
+  subtractCurrencyAmounts,
+  sumByCurrency,
+  type BaseTotal,
+  type RateTable,
+} from "@/lib/currency"
 import type { CurrencyCode } from "@/types/database"
 import type { FixedFeeRevenueRow } from "@/features/invoices/types"
 import type {
@@ -20,10 +30,15 @@ import type {
   ProfitMetrics,
   RecentActivityRow,
   RecentTaskRow,
-  RetainerMetrics,
   TrendPoint,
   UpcomingDeadline,
 } from "./types"
+
+/** Default currency and Settings rate table, used to express totals in one currency. */
+export interface CurrencyContext {
+  base: CurrencyCode
+  rates: RateTable
+}
 
 export interface TaskWithProject {
   id: string
@@ -34,8 +49,19 @@ export interface TaskWithProject {
   created_at: string
   project_id: string | null
   client_id: string | null
-  projects: { project_name: string; hourly_rate: number | null; currency: CurrencyCode } | null
-  clients: { client_name: string } | null
+  projects: {
+    project_name: string
+    hourly_rate: number | null
+    currency: CurrencyCode
+    fx_rate: number | null
+    fx_base: CurrencyCode | null
+  } | null
+  clients: {
+    client_name: string
+    currency: CurrencyCode
+    fx_rate: number | null
+    fx_base: CurrencyCode | null
+  } | null
 }
 
 export async function getYearTasks(): Promise<TaskWithProject[]> {
@@ -43,7 +69,7 @@ export async function getYearTasks(): Promise<TaskWithProject[]> {
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, task_name, date, duration_seconds, billable, created_at, project_id, client_id, projects(project_name, hourly_rate, currency), clients(client_name)",
+      "id, task_name, date, duration_seconds, billable, created_at, project_id, client_id, projects(project_name, hourly_rate, currency, fx_rate, fx_base), clients(client_name, currency, fx_rate, fx_base)",
     )
     .gte("date", format(yearStart, "yyyy-MM-dd"))
     .order("date", { ascending: false })
@@ -72,7 +98,7 @@ export async function getYearFixedFeeRevenue(): Promise<FixedFeeRevenueRow[]> {
   return listFixedFeeRevenue(format(startOfYear(new Date()), "yyyy-MM-dd"))
 }
 
-function sumWithin(tasks: TaskWithProject[], flatFees: FixedFeeRevenueRow[], from: Date) {
+function sumWithin(tasks: TaskWithProject[], flatFees: FixedFeeRevenueRow[], from: Date, ctx: CurrencyContext) {
   const now = new Date()
   const filtered = tasks.filter((t) => isWithinInterval(new Date(t.date), { start: from, end: now }))
   const hours = filtered.reduce((acc, t) => acc + t.duration_seconds / 3600, 0)
@@ -85,17 +111,34 @@ function sumWithin(tasks: TaskWithProject[], flatFees: FixedFeeRevenueRow[], fro
     (f) => f.amount,
     (f) => f.currency,
   )
-  return { hours, billableHours, revenue: addCurrencyAmounts(taskRevenue, flatFeeRevenue) }
+  // The same revenue expressed in the base currency, honouring each project's agreed rate.
+  let revenueBase: BaseTotal = EMPTY_BASE_TOTAL
+  for (const task of filtered) {
+    const code = currencyFor(task)
+    // Project rate wins, then the client's contract rate (only if it is for this currency), then the Settings table.
+    const projectRate = task.projects?.fx_rate ? { rate: task.projects.fx_rate, base: task.projects.fx_base } : null
+    const clientRate =
+      task.clients?.fx_rate && task.clients.currency === code
+        ? { rate: task.clients.fx_rate, base: task.clients.fx_base }
+        : null
+    const agreed = projectRate ?? clientRate
+    revenueBase = addBaseTotal(revenueBase, revenueFor(task), code, rateToBase(code, ctx.base, ctx.rates, agreed))
+  }
+  for (const fee of flatFees.filter((f) => isWithinInterval(new Date(f.issue_date), { start: from, end: now }))) {
+    const agreed = { rate: fee.fx_rate, base: fee.fx_base }
+    revenueBase = addBaseTotal(revenueBase, fee.amount, fee.currency, rateToBase(fee.currency, ctx.base, ctx.rates, agreed))
+  }
+  return { hours, billableHours, revenue: addCurrencyAmounts(taskRevenue, flatFeeRevenue), revenueBase }
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getDashboardStats(ctx: CurrencyContext): Promise<DashboardStats> {
   const [tasks, flatFees] = await Promise.all([getYearTasks(), getYearFixedFeeRevenue()])
   const now = new Date()
 
-  const today = sumWithin(tasks, flatFees, startOfDay(now))
-  const week = sumWithin(tasks, flatFees, startOfWeek(now))
-  const month = sumWithin(tasks, flatFees, startOfMonth(now))
-  const year = sumWithin(tasks, flatFees, startOfYear(now))
+  const today = sumWithin(tasks, flatFees, startOfDay(now), ctx)
+  const week = sumWithin(tasks, flatFees, startOfWeek(now), ctx)
+  const month = sumWithin(tasks, flatFees, startOfMonth(now), ctx)
+  const year = sumWithin(tasks, flatFees, startOfYear(now), ctx)
 
   const [{ count: activeProjects }, { count: totalClients }, { count: totalTasks }] =
     await Promise.all([
@@ -113,6 +156,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     revenueWeek: week.revenue,
     revenueMonth: month.revenue,
     revenueYear: year.revenue,
+    revenueBase: { today: today.revenueBase, week: week.revenueBase, month: month.revenueBase, year: year.revenueBase },
     activeProjects: activeProjects ?? 0,
     totalClients: totalClients ?? 0,
     totalTasks: totalTasks ?? 0,
@@ -120,7 +164,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   }
 }
 
-export async function getProfitMetrics(stats: DashboardStats): Promise<ProfitMetrics> {
+export async function getProfitMetrics(stats: DashboardStats, ctx: CurrencyContext): Promise<ProfitMetrics> {
   const yearStart = startOfYear(new Date())
   const monthStart = startOfMonth(new Date())
   const { data, error } = await supabase
@@ -149,11 +193,18 @@ export async function getProfitMetrics(stats: DashboardStats): Promise<ProfitMet
   const revenueMonthSingle = singleCurrency ? (stats.revenueMonth[singleCurrency] ?? 0) : 0
   const profitMonthSingle = singleCurrency ? (profitMonth[singleCurrency] ?? 0) : 0
 
+  const expensesMonthBase = convertAmounts(expensesMonth, ctx.base, ctx.base, ctx.rates)
+  const profitMonthBase: BaseTotal = {
+    total: stats.revenueBase.month.total - expensesMonthBase.total,
+    missing: [...new Set([...stats.revenueBase.month.missing, ...expensesMonthBase.missing])],
+  }
+
   return {
     expensesMonth,
     expensesYear,
     profitMonth,
     profitYear,
+    profitMonthBase,
     profitMarginMonth:
       singleCurrency && revenueMonthSingle > 0 ? (profitMonthSingle / revenueMonthSingle) * 100 : null,
   }
@@ -201,14 +252,17 @@ export async function getProfitTrend(revenueTrend: TrendPoint[]): Promise<TrendP
 export async function getOutstandingInvoices(): Promise<OutstandingInvoices> {
   const { data, error } = await supabase
     .from("invoices")
-    .select("total, currency")
-    .in("status", ["sent", "overdue"])
+    .select("total, amount_paid, currency, due_date")
+    .in("status", ["sent", "partial", "overdue"])
 
   if (error) throw error
   const rows = data ?? []
+  const today = format(new Date(), "yyyy-MM-dd")
   return {
-    total: sumByCurrency(rows, (r) => Number(r.total), (r) => r.currency),
+    // Balance still owed: partial payments reduce what counts as outstanding.
+    total: sumByCurrency(rows, (r) => Number(r.total) - Number(r.amount_paid ?? 0), (r) => r.currency),
     count: rows.length,
+    overdueCount: rows.filter((r) => r.due_date && r.due_date < today).length,
   }
 }
 
@@ -219,7 +273,7 @@ export async function getUpcomingDeadlines(withinDays = 7): Promise<UpcomingDead
 
   const { data, error } = await supabase
     .from("invoices")
-    .select("id, invoice_number, due_date, total, currency, status, clients(client_name)")
+    .select("id, invoice_number, due_date, total, amount_paid, currency, status, clients(client_name)")
     .not("due_date", "is", null)
     .neq("status", "paid")
     .lte("due_date", format(horizon, "yyyy-MM-dd"))
@@ -232,6 +286,7 @@ export async function getUpcomingDeadlines(withinDays = 7): Promise<UpcomingDead
     invoice_number: string
     due_date: string
     total: number
+    amount_paid: number
     currency: CurrencyCode
     status: string
     clients: { client_name: string } | null
@@ -241,43 +296,12 @@ export async function getUpcomingDeadlines(withinDays = 7): Promise<UpcomingDead
     id: r.id,
     invoice_number: r.invoice_number,
     due_date: r.due_date,
-    total: Number(r.total),
+    total: Number(r.total) - Number(r.amount_paid ?? 0),
     currency: r.currency,
     status: r.status,
     client_name: r.clients?.client_name ?? null,
     overdue: new Date(r.due_date) < today,
   }))
-}
-
-export async function getRetainerMetrics(): Promise<RetainerMetrics> {
-  const retainers = await listRetainers()
-  const active = retainers.filter((r) => r.active)
-  const usage = await getRetainerUsage(active)
-
-  const usageRows = active.map((r) => {
-    const u = usage.get(r.id)
-    return {
-      id: r.id,
-      client_name: r.clients?.client_name ?? "—",
-      used_hours: u?.used_hours ?? 0,
-      included_hours: r.included_hours,
-      overage_amount: u?.overage_amount ?? 0,
-      currency: r.currency,
-    }
-  })
-
-  const totalOverageRevenue = sumByCurrency(
-    usageRows.filter((r) => r.overage_amount > 0),
-    (r) => r.overage_amount,
-    (r) => r.currency,
-  )
-
-  return {
-    activeRetainerCount: active.length,
-    totalMonthlyFee: sumByCurrency(active, (r) => r.monthly_fee, (r) => r.currency),
-    totalOverageRevenue,
-    usage: usageRows,
-  }
 }
 
 /**

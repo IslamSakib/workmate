@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
-import { Plus, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
-import { InfoTooltip } from "@/components/shared/InfoTooltip"
+import { PageHeader } from "@/components/shared/PageHeader"
 import { ExportCsvButton } from "@/components/shared/ExportCsvButton"
 import { formatDuration } from "@/lib/duration"
 import { createTask, deleteTask, duplicateTask, listTasks, updateTask } from "@/features/tasks/api"
@@ -108,16 +107,7 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">Tasks</h1>
-            <InfoTooltip text="A task is one piece of work, like 'Design homepage.' Log your time here." />
-          </div>
-          <p className="text-sm text-muted-foreground">Log and manage time entries.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <ExportCsvButton
+      <PageHeader title="Tasks" description="Log and manage time entries." actions={<><ExportCsvButton
             filename="tasks.csv"
             rows={tasks}
             columns={[
@@ -135,11 +125,8 @@ export default function TasksPage() {
               setFormOpen(true)
             }}
           >
-            <Plus className="size-4" />
             New Task
-          </Button>
-        </div>
-      </div>
+          </Button></>} />
 
       {loading ? (
         <Skeleton className="h-64" />
@@ -152,11 +139,10 @@ export default function TasksPage() {
           emptyMessage="No tasks yet. Log your first task to get started."
           enableRowSelection
           renderBulkActions={(selected, clearSelection) => (
-            <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/50 px-3 py-2">
+            <div className="flex items-center justify-between gap-2 rounded-md border bg-muted px-3 py-2">
               <span className="text-sm font-medium">{selected.length} selected</span>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={clearSelection}>
-                  <X className="size-4" />
                   Clear
                 </Button>
                 <Button
@@ -164,7 +150,6 @@ export default function TasksPage() {
                   size="sm"
                   onClick={() => setBulkDeleting(selected)}
                 >
-                  <Trash2 className="size-4" />
                   Delete
                 </Button>
               </div>

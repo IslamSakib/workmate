@@ -1,7 +1,5 @@
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useTheme } from "next-themes"
-import { Menu, LogOut, Settings as SettingsIcon, Moon, Sun, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import {
@@ -11,17 +9,37 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { SidebarNav } from "./Sidebar"
 import { useAuthStore } from "@/store/authStore"
+import { useTimerStore } from "@/store/timerStore"
+import { useElapsedSeconds, formatElapsed } from "@/hooks/useElapsedSeconds"
 
-export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
+function TimerReadout() {
+  const status = useTimerStore((s) => s.status)
+  const name = useTimerStore((s) => s.taskName)
+  const seconds = useElapsedSeconds()
+  if (status === "idle") return null
+  return (
+    <Link to="/timer" className="flex min-w-0 items-center gap-2 text-sm" aria-label="Open timer">
+      <span className="font-mono font-semibold tabular-nums text-sidebar-primary lg:text-primary">{formatElapsed(seconds)}</span>
+      <span className="hidden max-w-40 truncate text-muted-foreground sm:inline">{name}</span>
+      {status === "paused" && <span className="text-xs uppercase text-warning">Paused</span>}
+    </Link>
+  )
+}
+
+export function Topbar({
+  onOpenSearch,
+  moreOpen,
+  setMoreOpen,
+}: {
+  onOpenSearch: () => void
+  moreOpen: boolean
+  setMoreOpen: (v: boolean) => void
+}) {
   const navigate = useNavigate()
   const { user, signOut } = useAuthStore()
   const { resolvedTheme, setTheme } = useTheme()
-  const [mobileOpen, setMobileOpen] = useState(false)
-
-  const initials = (user?.email ?? "U").slice(0, 2).toUpperCase()
 
   const handleSignOut = async () => {
     await signOut()
@@ -29,81 +47,40 @@ export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
   }
 
   return (
-    <header className="flex h-12 items-center justify-between border-b px-4">
-      <div className="flex items-center gap-2">
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setMobileOpen(true)}
-            aria-label="Open menu"
-          >
-            <Menu className="size-5" />
-          </Button>
-          <SheetContent side="left" className="w-60 p-0">
-            <SheetHeader className="h-12 justify-center border-b px-4">
-              <SheetTitle className="text-left text-lg font-semibold tracking-tight">
-                WorkMate
-              </SheetTitle>
-            </SheetHeader>
-            <SidebarNav onNavigate={() => setMobileOpen(false)} />
-          </SheetContent>
-        </Sheet>
-        <span className="text-sm font-medium md:hidden">WorkMate</span>
+    <header className="sticky top-0 z-20 flex h-12 items-center justify-between gap-2 border-b bg-sidebar px-3 text-sidebar-foreground md:px-4 lg:bg-card lg:text-foreground">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="text-sm font-semibold lg:hidden">WorkMate</span>
+        <TimerReadout />
       </div>
-
-      <div className="flex items-center gap-1">
-        <Button
-          variant="outline"
-          size="sm"
-          className="hidden gap-2 text-muted-foreground sm:flex"
-          onClick={onOpenSearch}
-        >
-          <Search className="size-4" />
-          Search...
-          <kbd className="ml-2 rounded border bg-muted px-1.5 py-0.5 text-xs">Ctrl K</kbd>
+      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+        <SheetContent side="left" className="w-64 border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
+          <SheetHeader className="h-12 justify-center border-b border-sidebar-border px-4">
+            <SheetTitle className="text-left text-base font-semibold tracking-tight text-sidebar-accent-foreground">WorkMate</SheetTitle>
+          </SheetHeader>
+          <SidebarNav onNavigate={() => setMoreOpen(false)} />
+        </SheetContent>
+      </Sheet>
+      <div className="flex min-w-0 shrink-0 items-center gap-1">
+        <Button variant="outline" size="sm" className="border-sidebar-border bg-transparent text-inherit lg:border-border" onClick={onOpenSearch}>
+          Search <kbd className="ml-2 hidden rounded border px-1.5 text-xs sm:inline">Ctrl K</kbd>
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="sm:hidden"
-          aria-label="Search"
-          onClick={onOpenSearch}
-        >
-          <Search className="size-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Toggle theme"
-          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-        >
-          {resolvedTheme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
+        <Button variant="ghost" size="sm" className="hover:bg-sidebar-accent lg:hover:bg-accent" onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
+          {resolvedTheme === "dark" ? "Light" : "Dark"}
         </Button>
         <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="flex items-center gap-2 px-2">
-            <Avatar className="size-7">
-              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-            </Avatar>
-            <span className="hidden max-w-[140px] truncate text-sm sm:inline">
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="hidden max-w-36 truncate sm:inline-flex xl:max-w-56">
               {user?.email}
-            </span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem onClick={() => navigate("/settings")}>
-            <SettingsIcon className="size-4" />
-            Settings
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleSignOut} variant="destructive">
-            <LogOut className="size-4" />
-            Sign out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={() => navigate("/settings")}>Settings</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleSignOut} variant="destructive">
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   )

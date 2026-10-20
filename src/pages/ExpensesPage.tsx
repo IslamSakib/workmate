@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
-import { Plus } from "lucide-react"
 import { toast } from "sonner"
+import { PageHeader } from "@/components/shared/PageHeader"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
-import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import { createExpense, deleteExpense, listExpenses, updateExpense } from "@/features/expenses/api"
 import { ExpenseFormDialog } from "@/features/expenses/components/ExpenseFormDialog"
 import { getExpenseColumns } from "@/features/expenses/components/columns"
@@ -81,24 +80,14 @@ export default function ExpensesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">Expenses</h1>
-            <InfoTooltip text="Add money you spend on your business here, like software or supplies. This helps you see your real profit, not just what you earn." />
-          </div>
-          <p className="text-sm text-muted-foreground">Track business costs against revenue and profit.</p>
-        </div>
-        <Button
+      <PageHeader title="Expenses" description="Track business costs against revenue and profit." actions={<Button
           onClick={() => {
             setEditing(null)
             setFormOpen(true)
           }}
         >
-          <Plus className="size-4" />
           New Expense
-        </Button>
-      </div>
+        </Button>} />
 
       {loading ? (
         <Skeleton className="h-64" />

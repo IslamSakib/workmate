@@ -1,7 +1,8 @@
 import { z } from "zod"
 
 export const invoiceSchema = z.object({
-  invoice_number: z.string().min(1, "Invoice number is required"),
+  // Empty on create: the database assigns the next number from the account prefix.
+  invoice_number: z.string().optional(),
   client_id: z.string().nullable().optional(),
   project_id: z.string().nullable().optional(),
   currency: z.enum(["USD", "BDT", "EUR", "GBP", "PHP"]),
@@ -12,6 +13,7 @@ export const invoiceSchema = z.object({
   period_end: z.string().min(1, "Billing period end is required"),
   scheduled_date: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  kind: z.enum(["standard", "advance", "milestone"]).optional(),
 })
 
 export type InvoiceInput = z.infer<typeof invoiceSchema>

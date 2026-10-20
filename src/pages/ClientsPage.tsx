@@ -1,22 +1,17 @@
 import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
-import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
-import { InfoTooltip } from "@/components/shared/InfoTooltip"
+import { PageHeader } from "@/components/shared/PageHeader"
 import { ExportCsvButton } from "@/components/shared/ExportCsvButton"
-import { createClient, deleteClient, listClients, updateClient, updateClientStage } from "@/features/clients/api"
+import { createClient, deleteClient, listClients, updateClient } from "@/features/clients/api"
 import { ClientFormDialog } from "@/features/clients/components/ClientFormDialog"
 import { getClientColumns } from "@/features/clients/components/columns"
-import { ClientPipelineBoard } from "@/features/clients/components/ClientPipelineBoard"
-import { PIPELINE_STAGE_LABEL } from "@/features/clients/pipeline"
 import type { Client } from "@/features/clients/types"
 import type { ClientInput } from "@/features/clients/schema"
-import type { ClientPipelineStage } from "@/types/database"
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
@@ -24,7 +19,6 @@ export default function ClientsPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Client | null>(null)
   const [deleting, setDeleting] = useState<Client | null>(null)
-  const [view, setView] = useState<"table" | "board">("table")
   const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => {
@@ -77,15 +71,6 @@ export default function ClientsPage() {
     }
   }
 
-  const handleStageChange = async (client: Client, stage: ClientPipelineStage) => {
-    try {
-      await updateClientStage(client.id, stage)
-      setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, pipeline_stage: stage } : c)))
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update stage")
-    }
-  }
-
   const columns = getClientColumns({
     onEdit: (client) => {
       setEditing(client)
@@ -96,16 +81,7 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
-            <InfoTooltip text="A client is a person or company you work for. Add them here first. Then you can add projects and tasks for them." />
-          </div>
-          <p className="text-sm text-muted-foreground">Manage your client relationships.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <ExportCsvButton
+      <PageHeader title="Clients" description="Manage your client relationships." actions={<><ExportCsvButton
             filename="clients.csv"
             rows={clients}
             columns={[
@@ -115,7 +91,6 @@ export default function ClientsPage() {
               { label: "Phone", value: (c) => c.phone },
               { label: "Currency", value: (c) => c.currency },
               { label: "Country", value: (c) => c.country },
-              { label: "Stage", value: (c) => PIPELINE_STAGE_LABEL[c.pipeline_stage] },
               { label: "Created", value: (c) => c.created_at.slice(0, 10) },
             ]}
           />
@@ -125,37 +100,18 @@ export default function ClientsPage() {
               setFormOpen(true)
             }}
           >
-            <Plus className="size-4" />
             New Client
-          </Button>
-        </div>
-      </div>
-
-      <Tabs value={view} onValueChange={(v) => setView(v as "table" | "board")}>
-        <TabsList>
-          <TabsTrigger value="table">Table</TabsTrigger>
-          <TabsTrigger value="board">Pipeline</TabsTrigger>
-        </TabsList>
-      </Tabs>
+          </Button></>} />
 
       {loading ? (
         <Skeleton className="h-64" />
-      ) : view === "table" ? (
+      ) : (
         <DataTable
           columns={columns}
           data={clients}
           searchKey="client_name"
           searchPlaceholder="Search clients..."
           emptyMessage="No clients yet. Add your first client to get started."
-        />
-      ) : (
-        <ClientPipelineBoard
-          clients={clients}
-          onStageChange={handleStageChange}
-          onOpen={(client) => {
-            setEditing(client)
-            setFormOpen(true)
-          }}
         />
       )}
 

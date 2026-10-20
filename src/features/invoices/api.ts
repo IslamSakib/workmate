@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabaseClient"
-import { useAuthStore } from "@/store/authStore"
+import type { CurrencyCode } from "@/types/database"
 import type { InvoiceInput } from "./schema"
 import {
   FLAT_FEE_ITEM_ID,
@@ -122,7 +122,7 @@ async function getFlatFeeItemFor(
     const { count, error: itemsError } = await supabase
       .from("invoice_items")
       .select("id", { count: "exact", head: true })
-      .is("task_id", null)
+      .eq("kind", "flat_fee")
       .in("invoice_id", otherInvoiceIds)
     if (itemsError) throw itemsError
     if ((count ?? 0) > 0) return null
@@ -147,7 +147,7 @@ async function getFlatFeeItemFor(
  * than never (per-task math is always $0 for a fixed-price project).
  */
 export async function listFixedFeeRevenue(fromIssueDate?: string): Promise<FixedFeeRevenueRow[]> {
-  let invoiceQuery = supabase.from("invoices").select("id, issue_date, client_id, project_id, currency")
+  let invoiceQuery = supabase.from("invoices").select("id, issue_date, client_id, project_id, currency, fx_rate, fx_base")
   if (fromIssueDate) invoiceQuery = invoiceQuery.gte("issue_date", fromIssueDate)
   const { data: invoices, error: invoicesError } = await invoiceQuery
   if (invoicesError) throw invoicesError
@@ -156,7 +156,7 @@ export async function listFixedFeeRevenue(fromIssueDate?: string): Promise<Fixed
   const { data: items, error: itemsError } = await supabase
     .from("invoice_items")
     .select("invoice_id, amount")
-    .is("task_id", null)
+    .eq("kind", "flat_fee")
     .in(
       "invoice_id",
       invoices.map((i) => i.id),
@@ -175,100 +175,118 @@ export async function listFixedFeeRevenue(fromIssueDate?: string): Promise<Fixed
         client_id: invoice.client_id,
         project_id: invoice.project_id,
         currency: invoice.currency,
+        fx_rate: invoice.fx_rate == null ? null : Number(invoice.fx_rate),
+        fx_base: invoice.fx_base,
       },
     ]
   })
 }
 
-function totalOf(items: BillableTask[]) {
-  return items.reduce((acc, item) => acc + item.amount, 0)
+type RpcLine =
+  | { kind: "task"; task_id: string }
+  | { kind: "flat_fee" | "amount"; name: string; amount: number }
+  | { kind: "advance_credit"; credit_invoice_id: string }
+
+function toRpcLines(items: BillableTask[]): RpcLine[] {
+  return items.map((i): RpcLine => {
+    if (i.kind === "advance_credit") return { kind: "advance_credit", credit_invoice_id: i.credit_invoice_id as string }
+    if (i.kind === "amount") return { kind: "amount", name: i.task_name, amount: i.amount }
+    if (i.isFlatFee) return { kind: "flat_fee", name: i.task_name, amount: i.amount }
+    return { kind: "task", task_id: i.id }
+  })
 }
 
+function rpcPayload(input: InvoiceInput, items: BillableTask[]) {
+  return { ...input, kind: input.kind ?? "standard", items: toRpcLines(items) }
+}
+
+/** The database assigns the number from the account's prefix and counter (atomic, never repeats). */
+export async function nextInvoiceNumber(): Promise<string> {
+  const { data, error } = await supabase.rpc("next_invoice_number")
+  if (error) throw error
+  return data
+}
+
+// Totals, rounding, task linking and credit checks all happen inside one database transaction
+// (create_invoice / update_invoice, migration 0018), so a failure never leaves a half-written invoice.
 export async function createInvoice(input: InvoiceInput, items: BillableTask[]): Promise<Invoice> {
-  const accountId = useAuthStore.getState().accountId
-  const { data: userData } = await supabase.auth.getUser()
-  if (!accountId || !userData.user) throw new Error("Not authenticated")
-
-  const { data: invoice, error } = await supabase
-    .from("invoices")
-    .insert({
-      user_id: accountId,
-      created_by: userData.user.id,
-      invoice_number: input.invoice_number,
-      client_id: input.client_id,
-      project_id: input.project_id,
-      currency: input.currency,
-      status: input.status,
-      issue_date: input.issue_date,
-      due_date: input.due_date,
-      period_start: input.period_start,
-      period_end: input.period_end,
-      scheduled_date: input.scheduled_date,
-      notes: input.notes,
-      total: totalOf(items),
-    })
-    .select()
-    .single()
+  const { data, error } = await supabase.rpc("create_invoice", { p: rpcPayload(input, items) })
   if (error) throw friendlyError(error)
-
-  await linkInvoiceItems(invoice.id, items)
-
-  return invoice
+  return data as Invoice
 }
 
 export async function updateInvoice(id: string, input: InvoiceInput, items: BillableTask[]): Promise<Invoice> {
-  await supabase.from("tasks").update({ invoice_id: null }).eq("invoice_id", id)
-  await supabase.from("invoice_items").delete().eq("invoice_id", id)
-
-  const { data: invoice, error } = await supabase
-    .from("invoices")
-    .update({
-      invoice_number: input.invoice_number,
-      client_id: input.client_id,
-      project_id: input.project_id,
-      currency: input.currency,
-      status: input.status,
-      issue_date: input.issue_date,
-      due_date: input.due_date,
-      period_start: input.period_start,
-      period_end: input.period_end,
-      scheduled_date: input.scheduled_date,
-      notes: input.notes,
-      total: totalOf(items),
-    })
-    .eq("id", id)
-    .select()
-    .single()
+  const { data, error } = await supabase.rpc("update_invoice", { p_id: id, p: rpcPayload(input, items) })
   if (error) throw friendlyError(error)
-
-  await linkInvoiceItems(id, items)
-
-  return invoice
+  return data as Invoice
 }
 
-async function linkInvoiceItems(invoiceId: string, items: BillableTask[]) {
-  if (items.length === 0) return
+export interface PastInvoiceInput {
+  client_id: string | null
+  project_id: string | null
+  currency: CurrencyCode
+  description: string
+  amount: number
+  issue_date: string
+  period_start: string | null
+  period_end: string | null
+  /** Set when the money already arrived; the invoice is then fully paid on this date. */
+  paid_date: string | null
+  method?: string | null
+}
 
-  const itemsToInsert = items.map((item) => ({
-    invoice_id: invoiceId,
-    task_id: item.isFlatFee ? null : item.id,
-    task_name: item.task_name,
-    task_date: item.date,
-    duration_seconds: item.duration_seconds,
-    rate: item.rate,
-    amount: item.amount,
-  }))
-  const { error: itemsError } = await supabase.from("invoice_items").insert(itemsToInsert)
-  if (itemsError) throw itemsError
+/** Records an invoice for work that was billed outside this app, optionally already paid in full. */
+export async function createPastInvoice(input: PastInvoiceInput): Promise<Invoice> {
+  const { description, amount, paid_date, method, ...rest } = input
+  const { data, error } = await supabase.rpc("create_invoice", {
+    p: { ...rest, kind: "standard", status: "sent", due_date: paid_date ?? rest.issue_date, items: [{ kind: "amount", name: description, amount }] },
+  })
+  if (error) throw friendlyError(error)
+  const inv = data as Invoice
+  if (paid_date) await recordPayment(inv.id, { amount, paid_date, method: method ?? null })
+  return inv
+}
 
-  const realTaskIds = items.filter((item) => !item.isFlatFee).map((item) => item.id)
-  if (realTaskIds.length > 0) {
-    const { error: linkError } = await supabase
-      .from("tasks")
-      .update({ invoice_id: invoiceId })
-      .in("id", realTaskIds)
-    if (linkError) throw linkError
-  }
+export interface CreditableAdvance {
+  id: string
+  invoice_number: string
+  kind: "advance" | "milestone"
+  /** What has actually been received so far; this is what the final invoice credits. */
+  amount_paid: number
+  currency: CurrencyCode
+}
+
+/**
+ * Advance/milestone invoices with money received that no other invoice has credited yet,
+ * so they can be deducted on the final invoice. Credits already on `excludeInvoiceId` stay selectable.
+ */
+export async function listCreditableAdvances(filters: {
+  projectId?: string | null
+  clientId?: string | null
+  currency: CurrencyCode
+  excludeInvoiceId?: string
+}): Promise<CreditableAdvance[]> {
+  if (!filters.projectId && !filters.clientId) return []
+  let q = supabase
+    .from("invoices")
+    .select("id, invoice_number, kind, amount_paid, currency")
+    .in("kind", ["advance", "milestone"])
+    .gt("amount_paid", 0)
+    .eq("currency", filters.currency)
+  q = filters.projectId ? q.eq("project_id", filters.projectId) : q.eq("client_id", filters.clientId as string)
+  const { data, error } = await q
+  if (error) throw error
+  const advances = (data ?? []) as unknown as CreditableAdvance[]
+  if (advances.length === 0) return []
+
+  const { data: used, error: usedError } = await supabase
+    .from("invoice_items")
+    .select("credit_invoice_id, invoice_id")
+    .eq("kind", "advance_credit")
+    .in("credit_invoice_id", advances.map((a) => a.id))
+  if (usedError) throw usedError
+  const taken = new Set((used ?? []).filter((u) => u.invoice_id !== filters.excludeInvoiceId).map((u) => u.credit_invoice_id))
+  return advances.filter((a) => !taken.has(a.id)).map((a) => ({ ...a, amount_paid: Number(a.amount_paid) }))
 }
 
 export async function deleteInvoice(id: string): Promise<void> {
@@ -286,56 +304,25 @@ export async function getInvoicePayments(invoiceId: string): Promise<InvoicePaym
   return data ?? []
 }
 
-/**
- * Recomputes amount_paid and status from the invoice_payments rows that
- * actually exist — always sets an explicit status (never "no change") so
- * deleting a payment correctly un-pays an invoice, not just adding one.
- */
-async function recomputePaymentStatus(invoiceId: string): Promise<void> {
-  const { data: payments, error: paymentsError } = await supabase
-    .from("invoice_payments")
-    .select("amount")
-    .eq("invoice_id", invoiceId)
-  if (paymentsError) throw paymentsError
-
-  const { data: invoice, error: invoiceError } = await supabase
-    .from("invoices")
-    .select("total")
-    .eq("id", invoiceId)
-    .single()
-  if (invoiceError) throw invoiceError
-
-  const amountPaid = (payments ?? []).reduce((acc, p) => acc + Number(p.amount), 0)
-  const status = amountPaid >= Number(invoice.total) ? "paid" : amountPaid > 0 ? "partial" : "sent"
-
-  const { error: updateError } = await supabase
-    .from("invoices")
-    .update({ amount_paid: amountPaid, status })
-    .eq("id", invoiceId)
-  if (updateError) throw updateError
-}
-
 export async function recordPayment(
   invoiceId: string,
-  payment: { amount: number; paid_date: string; method?: string | null; notes?: string | null },
+  payment: {
+    amount: number
+    paid_date: string
+    method?: string | null
+    reference?: string | null
+    fx_rate?: number | null
+    notes?: string | null
+  },
 ): Promise<void> {
-  const { error: insertError } = await supabase.from("invoice_payments").insert({
-    invoice_id: invoiceId,
-    amount: payment.amount,
-    paid_date: payment.paid_date,
-    method: payment.method,
-    notes: payment.notes,
-  })
-  if (insertError) throw insertError
-
-  await recomputePaymentStatus(invoiceId)
+  // A database trigger keeps amount_paid and the status in sync and rejects overpayment.
+  const { error } = await supabase.from("invoice_payments").insert({ invoice_id: invoiceId, ...payment })
+  if (error) throw error
 }
 
-export async function deletePayment(paymentId: string, invoiceId: string): Promise<void> {
+export async function deletePayment(paymentId: string): Promise<void> {
   const { error } = await supabase.from("invoice_payments").delete().eq("id", paymentId)
   if (error) throw error
-
-  await recomputePaymentStatus(invoiceId)
 }
 
 /** Flips this account's scheduled invoices whose scheduled_date has passed to "sent". Lazy housekeeping, no toast. */

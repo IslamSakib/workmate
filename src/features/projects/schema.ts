@@ -14,6 +14,9 @@ export const projectSchema = z.object({
   hourly_rate: z.preprocess(emptyToNull, z.coerce.number().nonnegative().nullable().optional()),
   fixed_price: z.preprocess(emptyToNull, z.coerce.number().nonnegative().nullable().optional()),
   currency: z.enum(["USD", "BDT", "EUR", "GBP", "PHP"]),
+  /** Agreed rate: 1 unit of `currency` = fx_rate units of the default currency. Empty = use the Settings rate. */
+  fx_rate: z.preprocess(emptyToNull, z.coerce.number().positive("Rate must be greater than 0").nullable().optional()),
+  fx_base: z.enum(["USD", "BDT", "EUR", "GBP", "PHP"]).nullable().optional(),
   status: z.enum(["active", "paused", "completed", "cancelled"]),
   start_date: z.string().nullable().optional(),
   due_date: z.string().nullable().optional(),

@@ -1,11 +1,12 @@
+import { PasswordInput } from "@/components/shared/PasswordInput"
 import { useEffect, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, type Resolver } from "react-hook-form"
 import { toast } from "sonner"
+import { PageHeader } from "@/components/shared/PageHeader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { InfoTooltip } from "@/components/shared/InfoTooltip"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -19,7 +20,7 @@ import { useAuthStore } from "@/store/authStore"
 import { updatePassword } from "@/features/auth/api"
 import { resetPasswordSchema, type ResetPasswordInput } from "@/features/auth/schema"
 import { getProfile, getSettings, updateProfile, updateSettings } from "@/features/settings/api"
-import { preferencesSchema, profileSchema, type PreferencesInput, type ProfileInput } from "@/features/settings/schema"
+import { preferencesSchema, profileSchema, RATE_FIELDS, type PreferencesInput, type ProfileInput } from "@/features/settings/schema"
 
 const DATE_FORMATS = ["MM/dd/yyyy", "dd/MM/yyyy", "yyyy-MM-dd"]
 
@@ -31,7 +32,7 @@ export default function SettingsPage() {
   const preferencesForm = useForm<PreferencesInput>({
     resolver: zodResolver(preferencesSchema) as Resolver<PreferencesInput>,
     defaultValues: {
-      default_currency: "USD",
+      default_currency: "BDT",
       date_format: "MM/dd/yyyy",
       invoice_prefix: "INV-",
       tax_rate_pct: 0,
@@ -52,6 +53,11 @@ export default function SettingsPage() {
             invoice_prefix: settings.invoice_prefix,
             tax_rate_pct: settings.tax_rate_pct,
             payment_url: settings.payment_url ?? "",
+            rate_USD: settings.exchange_rates?.USD,
+            rate_EUR: settings.exchange_rates?.EUR,
+            rate_GBP: settings.exchange_rates?.GBP,
+            rate_PHP: settings.exchange_rates?.PHP,
+            rate_BDT: settings.exchange_rates?.BDT,
           })
         }
       })
@@ -92,13 +98,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-          <InfoTooltip text="Change your name, password, and app preferences here, like your default currency." />
-        </div>
-        <p className="text-sm text-muted-foreground">Manage your account and preferences.</p>
-      </div>
+      <PageHeader title="Settings" description="Manage your account and preferences." />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card>
@@ -134,7 +134,7 @@ export default function SettingsPage() {
         <CardContent>
           <form onSubmit={preferencesForm.handleSubmit(onSavePreferences)} className="space-y-4">
             <div className="space-y-2">
-              <Label>Default currency</Label>
+              <Label>Default currency (totals are shown in this)</Label>
               <Select
                 value={preferencesForm.watch("default_currency")}
                 onValueChange={(v) => preferencesForm.setValue("default_currency", v as PreferencesInput["default_currency"])}
@@ -151,6 +151,24 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
+            <fieldset className="space-y-2 rounded-md border p-3">
+              <legend className="px-1 text-sm font-medium">Fallback exchange rates</legend>
+              <p className="text-xs text-muted-foreground">
+                How much one unit of each currency is worth in your default currency
+                ({preferencesForm.watch("default_currency")}). Used only when a client or project has no
+                contract rate of its own. Set contract rates on each client (and project).
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {RATE_FIELDS.filter((c) => c !== preferencesForm.watch("default_currency")).map((c) => (
+                  <div key={c} className="space-y-1">
+                    <Label htmlFor={`rate_${c}`}>
+                      1 {c} = ? {preferencesForm.watch("default_currency")}
+                    </Label>
+                    <Input id={`rate_${c}`} type="number" step="any" min="0" inputMode="decimal" {...preferencesForm.register(`rate_${c}` as const)} />
+                  </div>
+                ))}
+              </div>
+            </fieldset>
             <div className="space-y-2">
               <Label>Date format</Label>
               <Select
@@ -218,14 +236,14 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="password">New password</Label>
-                <Input id="password" type="password" {...passwordForm.register("password")} />
+                <PasswordInput id="password" {...passwordForm.register("password")} />
                 {passwordForm.formState.errors.password && (
                   <p className="text-sm text-destructive">{passwordForm.formState.errors.password.message}</p>
                 )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm new password</Label>
-                <Input id="confirmPassword" type="password" {...passwordForm.register("confirmPassword")} />
+                <PasswordInput id="confirmPassword" {...passwordForm.register("confirmPassword")} />
                 {passwordForm.formState.errors.confirmPassword && (
                   <p className="text-sm text-destructive">{passwordForm.formState.errors.confirmPassword.message}</p>
                 )}

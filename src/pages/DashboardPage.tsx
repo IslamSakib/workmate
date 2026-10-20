@@ -1,140 +1,202 @@
-import { useEffect, useState } from "react"
-import { toast } from "sonner"
+import { useCallback, useEffect, useState } from "react"
+import { Link } from "react-router-dom"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { InfoTooltip } from "@/components/shared/InfoTooltip"
+import { PageHeader } from "@/components/shared/PageHeader"
+import { ErrorState, EmptyState } from "@/components/shared/States"
+import { Converted, ShowInSelector } from "@/components/shared/Converted"
+import { Stat, Status } from "@/components/shared/Status"
 import {
   getDashboardStats,
-  getGrowthDeltas,
   getMonthlyTrend,
   getOutstandingInvoices,
   getProfitMetrics,
-  getProfitTrend,
-  getRecentActivity,
   getRecentTasks,
-  getRetainerMetrics,
   getUpcomingDeadlines,
 } from "@/features/dashboard/api"
-import { StatsCards } from "@/features/dashboard/components/StatsCards"
-import { RevenueTrendChart } from "@/features/dashboard/components/RevenueTrendChart"
-import { HoursTrendChart } from "@/features/dashboard/components/HoursTrendChart"
-import { ProfitChart } from "@/features/dashboard/components/ProfitChart"
-import { RecentTasks } from "@/features/dashboard/components/RecentTasks"
-import { RecentActivity } from "@/features/dashboard/components/RecentActivity"
-import { UpcomingDeadlines } from "@/features/dashboard/components/UpcomingDeadlines"
-import { RetainerUsageWidget } from "@/features/dashboard/components/RetainerUsageWidget"
-import { QuickActions } from "@/features/dashboard/components/QuickActions"
-import { useAuthStore } from "@/store/authStore"
-import { getSettings } from "@/features/settings/api"
+import { TrendCharts } from "@/features/dashboard/components/TrendCharts"
+import { useTimerStore } from "@/store/timerStore"
+import { useCurrencySettings } from "@/hooks/useCurrencySettings"
+import { useShowIn } from "@/hooks/useShowIn"
+import { useElapsedSeconds, formatElapsed } from "@/hooks/useElapsedSeconds"
+import { formatDuration } from "@/lib/duration"
+import { formatCurrency } from "@/lib/currency"
 import type {
   DashboardStats,
   OutstandingInvoices,
   ProfitMetrics,
-  RecentActivityRow,
   RecentTaskRow,
-  RetainerMetrics,
   TrendPoint,
   UpcomingDeadline,
 } from "@/features/dashboard/types"
 
+interface DashboardData {
+  stats: DashboardStats
+  trend: TrendPoint[]
+  recentTasks: RecentTaskRow[]
+  outstanding: OutstandingInvoices
+  deadlines: UpcomingDeadline[]
+  profit: ProfitMetrics
+}
+
+function RunningTimer() {
+  const status = useTimerStore((s) => s.status)
+  const name = useTimerStore((s) => s.taskName)
+  const seconds = useElapsedSeconds()
+  return (
+    <section aria-label="Timer" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
+      <div className="min-w-0">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          {status === "idle" ? "Timer" : status === "running" ? "Running" : "Paused"}
+        </p>
+        <p className="font-mono text-2xl tabular-nums">{formatElapsed(seconds)}</p>
+        {status !== "idle" && <p className="truncate text-sm text-muted-foreground">{name}</p>}
+      </div>
+      <Button asChild>
+        <Link to="/timer">{status === "idle" ? "Start timer" : "Open timer"}</Link>
+      </Button>
+    </section>
+  )
+}
+
 export default function DashboardPage() {
-  const { user } = useAuthStore()
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [trend, setTrend] = useState<TrendPoint[]>([])
-  const [profitTrend, setProfitTrend] = useState<TrendPoint[]>([])
-  const [recentTasks, setRecentTasks] = useState<RecentTaskRow[]>([])
-  const [activity, setActivity] = useState<RecentActivityRow[]>([])
-  const [outstanding, setOutstanding] = useState<OutstandingInvoices | null>(null)
-  const [deadlines, setDeadlines] = useState<UpcomingDeadline[]>([])
-  const [retainers, setRetainers] = useState<RetainerMetrics | null>(null)
-  const [profit, setProfit] = useState<ProfitMetrics | null>(null)
-  const [taxRatePct, setTaxRatePct] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const { base, rates, loaded } = useCurrencySettings()
+  const [showIn, setShowIn] = useShowIn(base)
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setError(null)
+    try {
+      const [stats, trend, recentTasks, outstanding, deadlines] = await Promise.all([
+        getDashboardStats({ base, rates }),
+        getMonthlyTrend(),
+        getRecentTasks(8),
+        getOutstandingInvoices(),
+        getUpcomingDeadlines(14),
+      ])
+      const profit = await getProfitMetrics(stats, { base, rates })
+      setData({ stats, trend, recentTasks, outstanding, deadlines, profit })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load dashboard")
+    }
+  }, [base, rates])
 
   useEffect(() => {
-    if (!user) return
-    let active = true
-    async function load() {
-      try {
-        const [statsRes, trendRes, tasksRes, activityRes, outstandingRes, deadlinesRes, retainersRes, settingsRes] =
-          await Promise.all([
-            getDashboardStats(),
-            getMonthlyTrend(),
-            getRecentTasks(),
-            getRecentActivity(),
-            getOutstandingInvoices(),
-            getUpcomingDeadlines(),
-            getRetainerMetrics(),
-            getSettings(user!.id),
-          ])
-        if (!active) return
-        const [profitRes, profitTrendRes] = await Promise.all([
-          getProfitMetrics(statsRes),
-          getProfitTrend(trendRes),
-        ])
-        if (!active) return
-        setStats(statsRes)
-        setTrend(trendRes)
-        setProfitTrend(profitTrendRes)
-        setRecentTasks(tasksRes)
-        setActivity(activityRes)
-        setOutstanding(outstandingRes)
-        setDeadlines(deadlinesRes)
-        setRetainers(retainersRes)
-        setProfit(profitRes)
-        setTaxRatePct(settingsRes?.tax_rate_pct ?? 0)
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to load dashboard")
-      } finally {
-        if (active) setLoading(false)
-      }
-    }
-    load()
-    return () => {
-      active = false
-    }
-  }, [user])
+    // Wait for the currency settings so conversions use the right base and rates on first paint.
+    if (loaded) load()
+  }, [load, loaded])
 
-  if (loading || !stats || !outstanding || !retainers || !profit) {
+  const header = (
+    <PageHeader
+      title="Today"
+      description="Hours, money owed, and what needs action."
+      actions={
+        <>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/tasks?new=1">New task</Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link to="/invoices?new=1">New invoice</Link>
+          </Button>
+        </>
+      }
+    />
+  )
+
+  if (error) {
     return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
-        <Skeleton className="h-72" />
-      </div>
+      <>
+        {header}
+        <ErrorState message={error} onRetry={load} />
+      </>
     )
   }
 
-  const growth = getGrowthDeltas(trend)
+  if (!data) {
+    return (
+      <>
+        {header}
+        <Skeleton className="h-24" />
+        <Skeleton className="h-64" />
+      </>
+    )
+  }
+
+  const { stats, trend, recentTasks, outstanding, deadlines, profit } = data
 
   return (
-    <div className="space-y-4">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <InfoTooltip text="This is your home page. It shows your hours, money earned, and other key numbers at a glance." />
+    <>
+      {header}
+
+      <RunningTimer />
+
+      <ShowInSelector value={showIn} onChange={setShowIn} base={base} rates={rates} />
+
+      <section aria-label="Key figures" className="grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-4">
+        <Stat label="Hours this week" value={`${stats.hoursWeek.toFixed(1)}h`} sub={`${stats.hoursToday.toFixed(1)}h today`} />
+        <Stat label="Revenue this month" value={<Converted amounts={stats.revenueMonth} baseTotal={stats.revenueBase.month} mode={showIn} base={base} rates={rates} />} />
+        <Stat label="Profit this month" value={<Converted amounts={profit.profitMonth} baseTotal={profit.profitMonthBase} mode={showIn} base={base} rates={rates} />} sub="Revenue minus expenses" />
+        <Stat
+          label="Owed to you"
+          value={<Converted amounts={outstanding.total} mode={showIn} base={base} rates={rates} />}
+          sub={`${outstanding.count} open, ${outstanding.overdueCount} overdue`}
+        />
+      </section>
+
+      <section aria-label="Needs attention">
+        <h2 className="mb-2 text-sm font-semibold">Needs attention</h2>
+        {deadlines.length === 0 ? (
+          <EmptyState title="Nothing due in the next 14 days." />
+        ) : (
+          <ul className="divide-y rounded-md border">
+            {deadlines.map((d) => (
+              <li key={d.id}>
+                <Link to="/invoices" className="flex items-center justify-between gap-3 p-3 hover:bg-accent">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {d.invoice_number} <span className="font-normal text-muted-foreground">{d.client_name ?? ""}</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">Due {d.due_date}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="text-sm tabular-nums">{formatCurrency(d.total, d.currency)}</span>
+                    <Status tone={d.overdue ? "bad" : "warn"}>{d.overdue ? "Overdue" : "Due soon"}</Status>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <TrendCharts data={trend} />
+
+      <section aria-label="Recent tasks">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Recent tasks</h2>
+          <Link to="/tasks" className="text-sm underline">
+            All tasks
+          </Link>
         </div>
-        <p className="text-sm text-muted-foreground">Your freelance business at a glance.</p>
-      </div>
-
-      <QuickActions />
-
-      <StatsCards stats={stats} outstanding={outstanding} growth={growth} profit={profit} taxRatePct={taxRatePct} />
-
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <RevenueTrendChart data={trend} />
-        <HoursTrendChart data={trend} />
-        <ProfitChart data={profitTrend} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <RecentTasks tasks={recentTasks} />
-        <RecentActivity activity={activity} />
-        <UpcomingDeadlines deadlines={deadlines} />
-        <RetainerUsageWidget retainers={retainers} />
-      </div>
-    </div>
+        {recentTasks.length === 0 ? (
+          <EmptyState title="No tasks yet." hint="Start the timer or add a task to begin." />
+        ) : (
+          <ul className="divide-y rounded-md border">
+            {recentTasks.map((t) => (
+              <li key={t.id} className="flex items-center justify-between gap-3 p-3 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{t.task_name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {[t.client_name, t.project_name].filter(Boolean).join(" / ") || "No project"}
+                  </p>
+                </div>
+                <span className="shrink-0 font-mono tabular-nums">{formatDuration(t.duration_seconds)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </>
   )
 }

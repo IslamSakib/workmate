@@ -1,5 +1,4 @@
 import type { ColumnDef } from "@tanstack/react-table"
-import { Copy, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -84,21 +83,16 @@ export function getTaskColumns({
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-8">
-                <MoreHorizontal className="size-4" />
-              </Button>
+              <Button variant="ghost" size="sm" className="">More</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onEdit(task)}>
-                <Pencil className="size-4" />
                 Edit
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onDuplicate(task)}>
-                <Copy className="size-4" />
                 Duplicate
               </DropdownMenuItem>
               <DropdownMenuItem variant="destructive" onClick={() => onDelete(task)}>
-                <Trash2 className="size-4" />
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>

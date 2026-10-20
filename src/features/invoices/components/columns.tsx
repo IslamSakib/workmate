@@ -1,15 +1,13 @@
 import type { ColumnDef } from "@tanstack/react-table"
-import { Download, Link2, Mail, MoreHorizontal, Pencil, Trash2, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { InvoiceStatus } from "@/components/shared/Status"
 import { formatCurrency } from "@/lib/currency"
-import { cn } from "@/lib/utils"
 import type { InvoiceWithRelations } from "../types"
 
 interface ColumnActions {
@@ -21,18 +19,17 @@ interface ColumnActions {
   onCopyLink: (invoice: InvoiceWithRelations) => void
 }
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-  draft: "secondary",
-  scheduled: "outline",
-  sent: "outline",
-  partial: "outline",
-  paid: "default",
-  overdue: "destructive",
+const KIND_LABEL = { standard: "Standard", advance: "Advance", milestone: "Milestone" } as const
+
+/** Overdue is derived from the due date, never stored: sent or partly paid and past due. */
+export function isOverdue(invoice: Pick<InvoiceWithRelations, "status" | "due_date">): boolean {
+  if (!invoice.due_date) return false
+  return (invoice.status === "sent" || invoice.status === "partial" || invoice.status === "overdue") &&
+    invoice.due_date < new Date().toISOString().slice(0, 10)
 }
 
-const STATUS_CLASS: Record<string, string> = {
-  partial: "text-warning border-warning",
-  paid: "bg-success text-success-foreground",
+export function balanceOf(invoice: Pick<InvoiceWithRelations, "total" | "amount_paid">): number {
+  return Math.max(0, Number(invoice.total) - Number(invoice.amount_paid))
 }
 
 export function getInvoiceColumns({
@@ -44,83 +41,65 @@ export function getInvoiceColumns({
   onCopyLink,
 }: ColumnActions): ColumnDef<InvoiceWithRelations, unknown>[] {
   return [
-    { accessorKey: "invoice_number", header: "Invoice #" },
+    { accessorKey: "invoice_number", header: "Invoice", meta: { primary: true } },
     {
       id: "client",
       header: "Client",
-      cell: ({ row }) => row.original.clients?.client_name ?? "—",
+      accessorFn: (r) => r.clients?.client_name ?? "",
+      cell: ({ row }) => row.original.clients?.client_name ?? "None",
     },
     {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => (
-        <Badge
-          variant={STATUS_VARIANT[row.original.status]}
-          className={cn("capitalize", STATUS_CLASS[row.original.status])}
-        >
-          {row.original.status}
-        </Badge>
-      ),
+      id: "type",
+      header: "Type",
+      meta: { secondary: true },
+      accessorFn: (r) => KIND_LABEL[r.kind] ?? "Standard",
+    },
+    {
+      accessorKey: "due_date",
+      header: "Due",
+      meta: { secondary: true },
+      cell: ({ row }) => row.original.due_date || "-",
     },
     {
       accessorKey: "total",
       header: "Total",
-      cell: ({ row }) => {
-        const invoice = row.original
-        const paid = Number(invoice.amount_paid)
-        return (
-          <div>
-            <div>{formatCurrency(invoice.total, invoice.currency)}</div>
-            {paid > 0 && paid < Number(invoice.total) && (
-              <div className="text-xs text-muted-foreground">{formatCurrency(paid, invoice.currency)} paid</div>
-            )}
-          </div>
-        )
-      },
+      cell: ({ row }) => <span className="tabular-nums">{formatCurrency(Number(row.original.total), row.original.currency)}</span>,
     },
-    { accessorKey: "due_date", header: "Due", cell: ({ row }) => row.original.due_date || "—" },
+    {
+      id: "balance",
+      header: "Balance",
+      accessorFn: (r) => balanceOf(r),
+      cell: ({ row }) => (
+        <span className="font-semibold tabular-nums">{formatCurrency(balanceOf(row.original), row.original.currency)}</span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => <InvoiceStatus status={row.original.status} overdue={isOverdue(row.original)} />,
+    },
     {
       id: "actions",
       header: "",
       enableHiding: false,
       cell: ({ row }) => {
         const invoice = row.original
-        const canRecordPayment = invoice.status !== "draft" && invoice.status !== "scheduled"
-        const canRemind = invoice.status === "sent" || invoice.status === "overdue" || invoice.status === "partial"
+        const canPay = invoice.status !== "draft" && invoice.status !== "scheduled"
+        const canRemind = canPay && invoice.status !== "paid"
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-8">
-                <MoreHorizontal className="size-4" />
+              <Button variant="ghost" size="sm">
+                More
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEdit(invoice)}>
-                <Pencil className="size-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onExport(invoice)}>
-                <Download className="size-4" />
-                Export PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onCopyLink(invoice)}>
-                <Link2 className="size-4" />
-                Copy share link
-              </DropdownMenuItem>
-              {canRecordPayment && (
-                <DropdownMenuItem onClick={() => onRecordPayment(invoice)}>
-                  <Wallet className="size-4" />
-                  Payments
-                </DropdownMenuItem>
-              )}
-              {canRemind && (
-                <DropdownMenuItem onClick={() => onSendReminder(invoice)}>
-                  <Mail className="size-4" />
-                  Send Reminder
-                </DropdownMenuItem>
-              )}
+              {canPay && <DropdownMenuItem onClick={() => onRecordPayment(invoice)}>Payments</DropdownMenuItem>}
+              <DropdownMenuItem onClick={() => onExport(invoice)}>Download PDF</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onCopyLink(invoice)}>Copy share link</DropdownMenuItem>
+              {canRemind && <DropdownMenuItem onClick={() => onSendReminder(invoice)}>Send reminder</DropdownMenuItem>}
+              <DropdownMenuItem onClick={() => onEdit(invoice)}>Edit</DropdownMenuItem>
               <DropdownMenuItem variant="destructive" onClick={() => onDelete(invoice)}>
-                <Trash2 className="size-4" />
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>

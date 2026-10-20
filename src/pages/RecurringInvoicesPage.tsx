@@ -1,30 +1,50 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
-import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
-import { InfoTooltip } from "@/components/shared/InfoTooltip"
+import { PageHeader } from "@/components/shared/PageHeader"
+import { ErrorState } from "@/components/shared/States"
 import {
   createRecurringInvoice,
   deleteRecurringInvoice,
+  generateDueRecurringInvoices,
   listRecurringInvoices,
+  setRecurringActive,
   updateRecurringInvoice,
 } from "@/features/recurring-invoices/api"
 import { RecurringInvoiceFormDialog } from "@/features/recurring-invoices/components/RecurringInvoiceFormDialog"
 import { getRecurringInvoiceColumns } from "@/features/recurring-invoices/components/columns"
+import { ChangeSalaryDialog } from "@/features/recurring-invoices/components/ChangeSalaryDialog"
 import type { RecurringInvoiceWithRelations } from "@/features/recurring-invoices/types"
 import type { RecurringInvoiceInput } from "@/features/recurring-invoices/schema"
 
 export default function RecurringInvoicesPage() {
-  const [recurringInvoices, setRecurringInvoices] = useState<RecurringInvoiceWithRelations[]>([])
-  const [loading, setLoading] = useState(true)
+  const [rows, setRows] = useState<RecurringInvoiceWithRelations[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<RecurringInvoiceWithRelations | null>(null)
+  const [raising, setRaising] = useState<RecurringInvoiceWithRelations | null>(null)
   const [deleting, setDeleting] = useState<RecurringInvoiceWithRelations | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
+
+  const load = useCallback(async () => {
+    setError(null)
+    try {
+      // Bill anything that has come due, then show the updated schedule.
+      const made = await generateDueRecurringInvoices()
+      if (made > 0) toast.success(`${made} invoice(s) created`)
+      setRows(await listRecurringInvoices())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load recurring invoices")
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   useEffect(() => {
     if (searchParams.get("new") === "1") {
@@ -37,85 +57,78 @@ export default function RecurringInvoicesPage() {
     }
   }, [searchParams, setSearchParams])
 
-  const load = async () => {
-    setLoading(true)
-    try {
-      setRecurringInvoices(await listRecurringInvoices())
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load recurring invoices")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    load()
-  }, [])
-
   const handleSubmit = async (values: RecurringInvoiceInput) => {
     if (editing) {
-      await updateRecurringInvoice(editing.id, values)
-      toast.success("Recurring invoice updated")
+      await updateRecurringInvoice(editing, values)
+      toast.success("Saved")
     } else {
       await createRecurringInvoice(values)
-      toast.success("Recurring invoice created")
+      toast.success("Started")
     }
     setEditing(null)
-    load()
+    await load()
   }
 
-  const handleDelete = async () => {
+  const toggle = async (r: RecurringInvoiceWithRelations) => {
+    try {
+      await setRecurringActive(r.id, !r.active)
+      toast.success(r.active ? "Paused" : "Resumed")
+      await load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update")
+    }
+  }
+
+  const remove = async () => {
     if (!deleting) return
     try {
       await deleteRecurringInvoice(deleting.id)
-      toast.success("Recurring invoice deleted")
+      toast.success("Deleted. Invoices already created are kept.")
       setDeleting(null)
-      load()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete recurring invoice")
+      await load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete")
     }
   }
 
   const columns = getRecurringInvoiceColumns({
-    onEdit: (recurringInvoice) => {
-      setEditing(recurringInvoice)
+    onEdit: (r) => {
+      setEditing(r)
       setFormOpen(true)
     },
-    onDelete: (recurringInvoice) => setDeleting(recurringInvoice),
+    onDelete: setDeleting,
+    onToggle: toggle,
+    onChangeSalary: setRaising,
   })
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">Recurring Invoices</h1>
-            <InfoTooltip text="Set this up once to send the same kind of invoice again and again, like every month. You won't have to make it by hand each time." />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Templates that auto-generate invoices on a schedule from billable hours.
-          </p>
-        </div>
-        <Button
-          onClick={() => {
-            setEditing(null)
-            setFormOpen(true)
-          }}
-        >
-          <Plus className="size-4" />
-          New Recurring Invoice
-        </Button>
-      </div>
+    <>
+      <PageHeader
+        title="Jobs & recurring"
+        description="Your jobs and regular billing. A job is paid after the month is worked, and its invoice is created for you each month."
+        actions={
+          <Button
+            onClick={() => {
+              setEditing(null)
+              setFormOpen(true)
+            }}
+          >
+            Add job or recurring
+          </Button>
+        }
+      />
 
-      {loading ? (
-        <Skeleton className="h-64" />
+      {error ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : !rows ? (
+        <Skeleton className="h-48" />
       ) : (
         <DataTable
           columns={columns}
-          data={recurringInvoices}
+          data={rows}
           searchKey="client"
-          searchPlaceholder="Search recurring invoices..."
-          emptyMessage="No recurring invoices yet. Add a template to auto-bill clients on a schedule."
+          searchPlaceholder="Search"
+          emptyMessage="Nothing here yet. Add your job or a retainer and its invoices will create themselves."
         />
       )}
 
@@ -129,13 +142,15 @@ export default function RecurringInvoicesPage() {
         onSubmit={handleSubmit}
       />
 
+      <ChangeSalaryDialog job={raising} onClose={() => setRaising(null)} onSaved={load} />
+
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(open) => !open && setDeleting(null)}
-        title="Delete recurring invoice?"
-        description={`This will permanently delete this recurring invoice template for ${deleting?.clients?.client_name ?? "this client"}.`}
-        onConfirm={handleDelete}
+        title="Delete this job or recurring invoice?"
+        description="No more invoices will be created from it. Invoices already created are kept."
+        onConfirm={remove}
       />
-    </div>
+    </>
   )
 }

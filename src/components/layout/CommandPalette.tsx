@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Users, FolderKanban, ListChecks, FileText, FileSignature, Repeat, CalendarSync, Receipt } from "lucide-react"
 import {
   CommandDialog,
   CommandEmpty,
@@ -16,7 +15,6 @@ import { listProjects } from "@/features/projects/api"
 import { listTasks } from "@/features/tasks/api"
 import { listInvoices } from "@/features/invoices/api"
 import { listExpenses } from "@/features/expenses/api"
-import { listProposals } from "@/features/proposals/api"
 
 interface SearchResult {
   id: string
@@ -41,7 +39,6 @@ export function CommandPalette({
   const [tasks, setTasks] = useState<SearchResult[]>([])
   const [invoices, setInvoices] = useState<SearchResult[]>([])
   const [expenses, setExpenses] = useState<SearchResult[]>([])
-  const [proposals, setProposals] = useState<SearchResult[]>([])
 
   useEffect(() => {
     if (!open) return
@@ -86,15 +83,6 @@ export function CommandPalette({
         ),
       )
       .catch(() => setExpenses([]))
-    listProposals()
-      .then((rows) =>
-        setProposals(
-          rows
-            .slice(0, SEARCH_LIMIT)
-            .map((p) => ({ id: p.id, label: p.project_name, sublabel: p.clients?.client_name, to: "/proposals" })),
-        ),
-      )
-      .catch(() => setProposals([]))
   }, [open])
 
   const go = (to: string) => {
@@ -115,35 +103,21 @@ export function CommandPalette({
 
         <CommandGroup heading="Create">
           <CommandItem onSelect={() => create("/clients")}>
-            <Users />
             Create Client
           </CommandItem>
           <CommandItem onSelect={() => create("/projects")}>
-            <FolderKanban />
             Create Project
           </CommandItem>
           <CommandItem onSelect={() => create("/tasks")}>
-            <ListChecks />
             Create Task
           </CommandItem>
           <CommandItem onSelect={() => create("/invoices")}>
-            <FileText />
             Create Invoice
           </CommandItem>
-          <CommandItem onSelect={() => create("/proposals")}>
-            <FileSignature />
-            Create Proposal
-          </CommandItem>
-          <CommandItem onSelect={() => create("/retainers")}>
-            <Repeat />
-            Create Retainer
-          </CommandItem>
-          <CommandItem onSelect={() => create("/recurring-invoices")}>
-            <CalendarSync />
-            Create Recurring Invoice
+          <CommandItem onSelect={() => create("/recurring")}>
+            Add Job or Recurring Invoice
           </CommandItem>
           <CommandItem onSelect={() => create("/expenses")}>
-            <Receipt />
             Create Expense
           </CommandItem>
         </CommandGroup>
@@ -153,7 +127,6 @@ export function CommandPalette({
         <CommandGroup heading="Navigate">
           {NAV_ITEMS.map((item) => (
             <CommandItem key={item.to} onSelect={() => go(item.to)}>
-              <item.icon />
               Go to {item.label}
             </CommandItem>
           ))}
@@ -165,7 +138,6 @@ export function CommandPalette({
             <CommandGroup heading="Clients">
               {clients.map((c) => (
                 <CommandItem key={c.id} onSelect={() => go(c.to)}>
-                  <Users />
                   {c.label}
                 </CommandItem>
               ))}
@@ -179,7 +151,6 @@ export function CommandPalette({
             <CommandGroup heading="Projects">
               {projects.map((p) => (
                 <CommandItem key={p.id} onSelect={() => go(p.to)}>
-                  <FolderKanban />
                   {p.label}
                   {p.sublabel && <span className="text-muted-foreground">— {p.sublabel}</span>}
                 </CommandItem>
@@ -194,7 +165,6 @@ export function CommandPalette({
             <CommandGroup heading="Tasks">
               {tasks.map((t) => (
                 <CommandItem key={t.id} onSelect={() => go(t.to)}>
-                  <ListChecks />
                   {t.label}
                   {t.sublabel && <span className="text-muted-foreground">— {t.sublabel}</span>}
                 </CommandItem>
@@ -209,7 +179,6 @@ export function CommandPalette({
             <CommandGroup heading="Invoices">
               {invoices.map((i) => (
                 <CommandItem key={i.id} onSelect={() => go(i.to)}>
-                  <FileText />
                   {i.label}
                   {i.sublabel && <span className="text-muted-foreground">— {i.sublabel}</span>}
                 </CommandItem>
@@ -224,7 +193,6 @@ export function CommandPalette({
             <CommandGroup heading="Expenses">
               {expenses.map((e) => (
                 <CommandItem key={e.id} onSelect={() => go(e.to)}>
-                  <Receipt />
                   {e.label}
                   {e.sublabel && <span className="text-muted-foreground">— {e.sublabel}</span>}
                 </CommandItem>
@@ -233,20 +201,6 @@ export function CommandPalette({
           </>
         )}
 
-        {proposals.length > 0 && (
-          <>
-            <CommandSeparator />
-            <CommandGroup heading="Proposals">
-              {proposals.map((p) => (
-                <CommandItem key={p.id} onSelect={() => go(p.to)}>
-                  <FileSignature />
-                  {p.label}
-                  {p.sublabel && <span className="text-muted-foreground">— {p.sublabel}</span>}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </>
-        )}
       </CommandList>
     </CommandDialog>
   )

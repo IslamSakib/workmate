@@ -1,3 +1,4 @@
+import { PasswordInput } from "@/components/shared/PasswordInput"
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -49,14 +50,14 @@ export default function RegisterPage() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" {...register("password")} />
+          <PasswordInput id="password" {...register("password")} />
           {errors.password && (
             <p className="text-sm text-destructive">{errors.password.message}</p>
           )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="confirmPassword">Confirm password</Label>
-          <Input id="confirmPassword" type="password" {...register("confirmPassword")} />
+          <PasswordInput id="confirmPassword" {...register("confirmPassword")} />
           {errors.confirmPassword && (
             <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
           )}

@@ -1,17 +1,16 @@
 import { rgb } from "pdf-lib"
 import {
   createPdfContext,
-  drawDivider,
-  drawRect,
   drawTable,
   drawText,
   downloadPdf,
   ensureSpace,
   MARGIN,
-  PAGE_HEIGHT,
   PAGE_WIDTH,
+  pdfMoney,
+  sanitize,
+  type PdfContext,
 } from "./shared"
-import { formatCurrency } from "@/lib/currency"
 import { formatDuration } from "@/lib/duration"
 import type { CurrencyCode } from "@/types/database"
 
@@ -20,154 +19,222 @@ export interface InvoicePdfItem {
   task_date: string
   duration_seconds: number
   rate: number
+  /** Negative for "advance received" credit lines. */
   amount: number
+}
+
+export interface InvoicePdfPayment {
+  date: string
+  amount: number
+  method?: string | null
+  reference?: string | null
 }
 
 export interface InvoicePdfData {
   invoice_number: string
   status: string
+  kind?: "standard" | "advance" | "milestone"
   issue_date: string
   due_date: string | null
   period_start: string | null
   period_end: string | null
   currency: CurrencyCode
+  from_name?: string | null
   client_name: string
   client_email?: string | null
   project_name?: string | null
   items: InvoicePdfItem[]
   total: number
   amount_paid: number
+  payments?: InvoicePdfPayment[]
   notes?: string | null
+  payment_url?: string | null
 }
 
-const ACCENT = rgb(0.33, 0.36, 0.85)
-const ACCENT_LIGHT = rgb(0.93, 0.94, 0.99)
-const HEADER_FILL = rgb(0.96, 0.96, 0.98)
-const GRAY = rgb(0.45, 0.45, 0.48)
-const DARK = rgb(0.1, 0.1, 0.12)
+// Flat black and white: no fills, no accent colour, hairline rules only.
+const BLACK = rgb(0, 0, 0)
+const GREY = rgb(0.4, 0.4, 0.4)
+const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2
+
+const TITLE: Record<NonNullable<InvoicePdfData["kind"]>, string> = {
+  standard: "INVOICE",
+  advance: "ADVANCE INVOICE",
+  milestone: "MILESTONE INVOICE",
+}
+
+function rule(ctx: PdfContext, thickness = 0.5) {
+  ctx.page.drawLine({
+    start: { x: MARGIN, y: ctx.cursorY },
+    end: { x: PAGE_WIDTH - MARGIN, y: ctx.cursorY },
+    thickness,
+    color: BLACK,
+  })
+}
+
+function rightText(ctx: PdfContext, text: string, right: number, y: number, size: number, bold = false) {
+  const font = bold ? ctx.bold : ctx.font
+  const w = font.widthOfTextAtSize(sanitize(text), size)
+  drawText(ctx, text, { x: right - w, y, size, bold, color: BLACK })
+}
+
+/** Label on the left, amount on the right of a 220pt summary column. */
+function summaryRow(ctx: PdfContext, label: string, value: string, bold = false) {
+  const boxWidth = 240
+  const x = PAGE_WIDTH - MARGIN - boxWidth
+  drawText(ctx, label, { x, y: ctx.cursorY, size: 10, bold, color: bold ? BLACK : GREY })
+  rightText(ctx, value, PAGE_WIDTH - MARGIN, ctx.cursorY, 10, bold)
+  ctx.cursorY -= 16
+}
 
 export async function generateInvoicePdf(data: InvoicePdfData) {
   const ctx = await createPdfContext()
-  const contentWidth = PAGE_WIDTH - MARGIN * 2
+  const money = (n: number) => pdfMoney(n, data.currency)
+  const kind = data.kind ?? "standard"
 
-  drawRect(ctx, { x: 0, y: PAGE_HEIGHT - 6, width: PAGE_WIDTH, height: 6, color: ACCENT })
-  ctx.cursorY -= 18
+  // Header
+  if (data.from_name) drawText(ctx, data.from_name, { x: MARGIN, y: ctx.cursorY, size: 11, bold: true, color: BLACK })
+  ctx.cursorY -= 26
+  drawText(ctx, TITLE[kind], { x: MARGIN, y: ctx.cursorY, size: 22, bold: true, color: BLACK })
+  rightText(ctx, data.invoice_number, PAGE_WIDTH - MARGIN, ctx.cursorY + 6, 12, true)
+  rightText(ctx, data.status.toUpperCase(), PAGE_WIDTH - MARGIN, ctx.cursorY - 8, 9)
+  ctx.cursorY -= 22
+  rule(ctx, 1.5)
+  ctx.cursorY -= 20
 
-  drawText(ctx, "INVOICE", { x: MARGIN, y: ctx.cursorY, size: 26, bold: true, color: DARK })
-
-  const numberLabel = data.invoice_number
-  const numberWidth = ctx.bold.widthOfTextAtSize(numberLabel, 13)
-  drawText(ctx, numberLabel, { x: PAGE_WIDTH - MARGIN - numberWidth, y: ctx.cursorY + 6, size: 13, bold: true, color: ACCENT })
-
-  const statusLabel = data.status.toUpperCase()
-  const statusWidth = ctx.bold.widthOfTextAtSize(statusLabel, 9)
-  drawText(ctx, statusLabel, { x: PAGE_WIDTH - MARGIN - statusWidth, y: ctx.cursorY - 10, size: 9, bold: true, color: GRAY })
-
-  ctx.cursorY -= 30
-  drawDivider(ctx)
-  ctx.cursorY -= 8
-
-  // Two-column "Billed To" / "Invoice Details" block
-  const colWidth = contentWidth / 2
-  const blockTop = ctx.cursorY
-  const rightX = MARGIN + colWidth
-
-  drawText(ctx, "BILLED TO", { x: MARGIN, y: blockTop, size: 9, bold: true, color: GRAY })
-  let leftY = blockTop - 16
-  drawText(ctx, data.client_name, { x: MARGIN, y: leftY, size: 12, bold: true, color: DARK })
+  // Billed to / details
+  const colWidth = CONTENT_WIDTH / 2
+  const top = ctx.cursorY
+  const rightX = MARGIN + colWidth + 20
+  drawText(ctx, "BILLED TO", { x: MARGIN, y: top, size: 8, bold: true, color: GREY })
+  let leftY = top - 14
+  drawText(ctx, data.client_name, { x: MARGIN, y: leftY, size: 11, bold: true, color: BLACK })
   if (data.client_email) {
-    leftY -= 15
-    drawText(ctx, data.client_email, { x: MARGIN, y: leftY, size: 10, color: GRAY })
+    leftY -= 14
+    drawText(ctx, data.client_email, { x: MARGIN, y: leftY, size: 10, color: BLACK })
   }
   if (data.project_name) {
-    leftY -= 15
-    drawText(ctx, `Project: ${data.project_name}`, { x: MARGIN, y: leftY, size: 10, color: GRAY })
+    leftY -= 14
+    drawText(ctx, `Project: ${data.project_name}`, { x: MARGIN, y: leftY, size: 10, color: BLACK })
   }
 
-  drawText(ctx, "INVOICE DETAILS", { x: rightX, y: blockTop, size: 9, bold: true, color: GRAY })
-  let rightY = blockTop - 16
-  const detailRow = (label: string, value: string) => {
-    drawText(ctx, label, { x: rightX, y: rightY, size: 10, color: GRAY })
-    const valueWidth = ctx.bold.widthOfTextAtSize(value, 10)
-    drawText(ctx, value, { x: rightX + colWidth - valueWidth, y: rightY, size: 10, bold: true, color: DARK })
-    rightY -= 15
+  drawText(ctx, "DETAILS", { x: rightX, y: top, size: 8, bold: true, color: GREY })
+  let rightY = top - 14
+  const detail = (label: string, value: string) => {
+    drawText(ctx, label, { x: rightX, y: rightY, size: 10, color: GREY })
+    rightText(ctx, value, PAGE_WIDTH - MARGIN, rightY, 10, true)
+    rightY -= 14
   }
-  detailRow("Issue date", data.issue_date)
-  if (data.due_date) detailRow("Due date", data.due_date)
-  if (data.period_start && data.period_end) {
-    detailRow("Billing period", `${data.period_start} – ${data.period_end}`)
-  }
+  detail("Issued", data.issue_date)
+  if (data.due_date) detail("Due", data.due_date)
+  if (data.period_start && data.period_end) detail("Period", `${data.period_start} to ${data.period_end}`)
+  detail("Currency", data.currency)
 
-  ctx.cursorY = Math.min(leftY, rightY) - 14
-  drawDivider(ctx)
-  ctx.cursorY -= 10
+  ctx.cursorY = Math.min(leftY, rightY) - 18
 
+  // Lines
+  const isHours = (i: InvoicePdfItem) => i.duration_seconds > 0
   drawTable(
     ctx,
     [
-      { label: "Task", width: 220 },
-      { label: "Date", width: 70 },
-      { label: "Duration", width: 80, align: "right" },
-      { label: "Rate", width: 60, align: "right" },
-      { label: "Amount", width: 70, align: "right" },
+      { label: "DESCRIPTION", width: 215 },
+      { label: "DATE", width: 70 },
+      { label: "HOURS", width: 65, align: "right" },
+      { label: "RATE", width: 70, align: "right" },
+      { label: "AMOUNT", width: 77, align: "right" },
     ],
-    data.items.map((item) => [
-      item.task_name,
-      item.task_date,
-      formatDuration(item.duration_seconds),
-      formatCurrency(item.rate, data.currency),
-      formatCurrency(item.amount, data.currency),
+    data.items.map((i) => [
+      i.task_name,
+      i.task_date,
+      isHours(i) ? formatDuration(i.duration_seconds) : "-",
+      isHours(i) ? money(i.rate) : "-",
+      money(i.amount),
     ]),
-    { headerFill: HEADER_FILL },
   )
+  ctx.cursorY -= 4
+  rule(ctx)
+  ctx.cursorY -= 18
 
-  ctx.cursorY -= 8
-  drawDivider(ctx)
-  ctx.cursorY -= 12
+  // Totals
+  const balance = Math.max(0, data.total - data.amount_paid)
+  const paid = data.amount_paid > 0
+  ensureSpace(ctx, 90)
+  summaryRow(ctx, "Total", money(data.total))
+  if (paid) summaryRow(ctx, "Paid so far", `-${money(data.amount_paid)}`)
+  ctx.cursorY -= 2
+  rule(ctx, 1.5)
+  ctx.cursorY -= 16
+  summaryRow(ctx, "BALANCE DUE", money(balance), true)
+  rule(ctx, 1.5)
+  ctx.cursorY -= 22
 
-  const boxWidth = 220
-  const boxHeight = 44
-  const hasPayment = data.amount_paid > 0
-  const boxX = PAGE_WIDTH - MARGIN - boxWidth
-
-  ensureSpace(ctx, boxHeight + (hasPayment ? 34 : 0) + 40)
-
-  if (hasPayment) {
-    const summaryRow = (label: string, value: string) => {
-      const valueWidth = ctx.bold.widthOfTextAtSize(value, 10)
-      drawText(ctx, label, { x: boxX, y: ctx.cursorY, size: 10, color: GRAY })
-      drawText(ctx, value, { x: boxX + boxWidth - valueWidth, y: ctx.cursorY, size: 10, bold: true, color: DARK })
-      ctx.cursorY -= 17
+  // Payment history
+  if (data.payments && data.payments.length > 0) {
+    ensureSpace(ctx, 30 + data.payments.length * 14)
+    drawText(ctx, "PAYMENTS RECEIVED", { x: MARGIN, y: ctx.cursorY, size: 8, bold: true, color: GREY })
+    ctx.cursorY -= 14
+    for (const p of data.payments) {
+      const label = [p.date, p.method, p.reference].filter(Boolean).join("  ")
+      drawText(ctx, label, { x: MARGIN, y: ctx.cursorY, size: 10, color: BLACK })
+      rightText(ctx, money(p.amount), PAGE_WIDTH - MARGIN, ctx.cursorY, 10)
+      ctx.cursorY -= 14
     }
-    summaryRow("Subtotal", formatCurrency(data.total, data.currency))
-    summaryRow("Amount paid", `-${formatCurrency(data.amount_paid, data.currency)}`)
-    ctx.cursorY -= 6
+    ctx.cursorY -= 10
   }
 
-  const balanceDue = Math.max(0, data.total - data.amount_paid)
-  const boxY = ctx.cursorY - boxHeight
-  drawRect(ctx, { x: boxX, y: boxY, width: boxWidth, height: boxHeight, color: ACCENT_LIGHT })
-  drawText(ctx, hasPayment ? "BALANCE DUE" : "TOTAL DUE", { x: boxX + 16, y: boxY + boxHeight - 18, size: 9, bold: true, color: GRAY })
-  const totalLabel = formatCurrency(hasPayment ? balanceDue : data.total, data.currency)
-  const totalWidth = ctx.bold.widthOfTextAtSize(totalLabel, 18)
-  drawText(ctx, totalLabel, { x: boxX + boxWidth - 16 - totalWidth, y: boxY + 12, size: 18, bold: true, color: ACCENT })
-
-  ctx.cursorY = boxY - 24
-  drawDivider(ctx)
+  if (data.payment_url) {
+    ensureSpace(ctx, 30)
+    drawText(ctx, "PAY ONLINE", { x: MARGIN, y: ctx.cursorY, size: 8, bold: true, color: GREY })
+    ctx.cursorY -= 14
+    drawText(ctx, data.payment_url, { x: MARGIN, y: ctx.cursorY, size: 10, color: BLACK })
+    ctx.cursorY -= 20
+  }
 
   if (data.notes) {
-    ctx.cursorY -= 16
-    ensureSpace(ctx, 30)
-    drawText(ctx, "NOTES", { x: MARGIN, y: ctx.cursorY, size: 9, bold: true, color: GRAY })
+    ensureSpace(ctx, 40)
+    drawText(ctx, "NOTES", { x: MARGIN, y: ctx.cursorY, size: 8, bold: true, color: GREY })
     ctx.cursorY -= 14
-    drawText(ctx, data.notes, { x: MARGIN, y: ctx.cursorY, size: 10, color: DARK })
-    ctx.cursorY -= 16
+    drawText(ctx, data.notes, { x: MARGIN, y: ctx.cursorY, size: 10, color: BLACK })
   }
 
-  const thankYou = "Thank you for your business."
-  const thankYouWidth = ctx.font.widthOfTextAtSize(thankYou, 10)
-  drawText(ctx, thankYou, { x: (PAGE_WIDTH - thankYouWidth) / 2, y: ctx.cursorY - 6, size: 10, color: GRAY })
+  downloadPdf(await ctx.doc.save(), `${data.invoice_number}.pdf`)
+}
 
-  const bytes = await ctx.doc.save()
-  downloadPdf(bytes, `${data.invoice_number}.pdf`)
+/** One-page receipt for a single payment (advance, partial, or final). */
+export async function generateReceiptPdf(data: {
+  invoice_number: string
+  client_name: string
+  currency: CurrencyCode
+  payment: InvoicePdfPayment
+  invoice_total: number
+  paid_to_date: number
+  from_name?: string | null
+}) {
+  const ctx = await createPdfContext()
+  const money = (n: number) => pdfMoney(n, data.currency)
+  if (data.from_name) drawText(ctx, data.from_name, { x: MARGIN, y: ctx.cursorY, size: 11, bold: true, color: BLACK })
+  ctx.cursorY -= 26
+  drawText(ctx, "PAYMENT RECEIPT", { x: MARGIN, y: ctx.cursorY, size: 22, bold: true, color: BLACK })
+  ctx.cursorY -= 22
+  rule(ctx, 1.5)
+  ctx.cursorY -= 24
+  const row = (label: string, value: string, bold = false) => {
+    drawText(ctx, label, { x: MARGIN, y: ctx.cursorY, size: 10, color: GREY })
+    rightText(ctx, value, PAGE_WIDTH - MARGIN, ctx.cursorY, 10, bold)
+    ctx.cursorY -= 18
+  }
+  row("Received from", data.client_name, true)
+  row("Invoice", data.invoice_number)
+  row("Payment date", data.payment.date)
+  if (data.payment.method) row("Method", data.payment.method)
+  if (data.payment.reference) row("Reference", data.payment.reference)
+  ctx.cursorY -= 6
+  rule(ctx)
+  ctx.cursorY -= 20
+  row("Amount received", money(data.payment.amount), true)
+  row("Invoice total", money(data.invoice_total))
+  row("Paid to date", money(data.paid_to_date))
+  row("Balance remaining", money(Math.max(0, data.invoice_total - data.paid_to_date)), true)
+  ctx.cursorY -= 4
+  rule(ctx, 1.5)
+  downloadPdf(await ctx.doc.save(), `Receipt-${data.invoice_number}-${data.payment.date}.pdf`)
 }
