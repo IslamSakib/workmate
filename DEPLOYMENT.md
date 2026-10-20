@@ -36,7 +36,7 @@ This produces a static `dist/` folder (HTML/CSS/JS only — no Node server requi
 
 ### Faster: `npm run deploy`
 
-`scripts/deploy.sh` builds and uploads over SSH. One-time setup: add the public key from `~/.ssh/workmate_deploy.pub` in hPanel > Advanced > SSH Access > Add SSH key. The private key never goes in the repo. If the site folder differs, run with `DEPLOY_PATH=<path relative to home>`.
+`scripts/deploy.sh` builds and uploads over SSH. Setup: the key `~/.ssh/hostinger_wrkbase.pub` (already authorised as `wrkbase-deploy`) is already on the account (hPanel > Advanced > SSH Access). The private key never goes in the repo. If the site folder differs, run with `DEPLOY_PATH=<path relative to home>`.
 
 ## 5. HTTPS
 
