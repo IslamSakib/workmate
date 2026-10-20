@@ -25,6 +25,7 @@ Database changes are applied by running SQL files directly in the Supabase SQL e
 - `0016_currency_and_payments.sql` — `settings.exchange_rates`/`rates_updated_at`/`next_invoice_seq`, agreed-rate columns (`projects`/`invoices`/`invoice_payments.fx_rate`), `invoices.kind` (standard/advance/milestone), `invoice_items.kind`/`credit_invoice_id`, payment triggers that keep `amount_paid` and `status` in sync, `next_invoice_number()`, drops the proposals RPCs
 - `0017_recurring_billing.sql` — server-side "until I stop it" recurring invoices: `generate_recurring_invoices()` (idempotent, catches up missed periods, optional daily pg_cron), fixed-amount or billable-tasks mode
 - `0018_invoice_rpcs.sql` — `create_invoice`/`update_invoice` RPCs: one transaction, server-computed totals, advance credits, guarded task linking. The app calls these; invoices cannot be saved until it is applied
+- `0020_jobs_and_invoice_fix.sql` — fixes the ambiguous `total` variable in the invoice RPCs; adds `recurring_invoices.employment_type` (jobs, paid in arrears: invoice covers the period before its pay date) and `recurring_amount_changes` (salary/amount raises effective from a date); `generate_recurring_invoices()` updated to use both
 
 When changing schema going forward, add a new numbered migration rather than editing an existing one in place, since a real install already exists.
 

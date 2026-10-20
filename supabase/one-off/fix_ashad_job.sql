@@ -1,4 +1,4 @@
--- One-off data fix (NOT a migration). Run AFTER 0019_jobs_and_invoice_fix.sql, in the Supabase SQL editor.
+-- One-off data fix (NOT a migration). Run AFTER 0020_jobs_and_invoice_fix.sql, in the Supabase SQL editor.
 -- Turns the "Ashad Chowdhury 40,000 monthly" template into a full-time job joined 1 Jul 2026,
 -- paid in arrears (July pay on 1 Aug, Aug pay on 1 Sep, Sep pay on 1 Oct), with all three invoices paid.
 --

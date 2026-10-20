@@ -1,4 +1,4 @@
--- 0019: (a) fix "column reference total is ambiguous" in the invoice RPCs,
+-- 0020: (a) fix "column reference total is ambiguous" in the invoice RPCs,
 -- (b) jobs: full-time / part-time employment paid in arrears. Idempotent.
 
 -- ---------------------------------------------------------------- (a) invoice RPCs
