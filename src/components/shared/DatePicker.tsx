@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -11,10 +12,11 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ value, onChange, placeholder = "Pick a date" }: DatePickerProps) {
+  const [open, setOpen] = useState(false)
   const date = value ? new Date(`${value.slice(0, 10)}T00:00:00`) : undefined
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -27,7 +29,10 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date" }: Dat
         <Calendar
           mode="single"
           selected={date}
-          onSelect={(d) => onChange(d ? format(d, "yyyy-MM-dd") : null)}
+          onSelect={(d) => {
+            onChange(d ? format(d, "yyyy-MM-dd") : null)
+            setOpen(false)
+          }}
           autoFocus
         />
       </PopoverContent>

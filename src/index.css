@@ -178,7 +178,7 @@
 @layer base {
   html {
     font-size: 16px;
-    overflow-y: scroll; /* keep the scrollbar so opening menus/dialogs never shifts the page */
+    scrollbar-gutter: stable; /* reserve the scrollbar's space so locking the page under a menu/dialog never shifts it */
     -webkit-text-size-adjust: 100%;
   }
   /* Tailwind v4 resets buttons to the arrow cursor; clickable things should show a hand. */
@@ -205,7 +205,7 @@
   [data-disabled] {
     cursor: not-allowed;
   }
-  /* Radix pads the body by the scrollbar width while a menu/dialog is open; the scrollbar never leaves, so cancel it. */
+  /* Radix pads the body by the scrollbar width while a menu/dialog is open; the gutter is already reserved, so cancel it. */
   body[data-scroll-locked] {
     margin-right: 0 !important;
     padding-right: 0 !important;
