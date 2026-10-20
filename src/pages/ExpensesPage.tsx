@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/shared/PageHeader"
@@ -6,6 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "@/components/shared/DataTable"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
+import { Converted, ShowInSelector } from "@/components/shared/Converted"
+import { Stat } from "@/components/shared/Status"
+import { useCurrencySettings } from "@/hooks/useCurrencySettings"
+import { useShowIn } from "@/hooks/useShowIn"
+import { sumByCurrency } from "@/lib/currency"
 import { createExpense, deleteExpense, listExpenses, updateExpense } from "@/features/expenses/api"
 import { ExpenseFormDialog } from "@/features/expenses/components/ExpenseFormDialog"
 import { getExpenseColumns } from "@/features/expenses/components/columns"
@@ -19,6 +24,19 @@ export default function ExpensesPage() {
   const [editing, setEditing] = useState<ExpenseWithRefs | null>(null)
   const [deleting, setDeleting] = useState<ExpenseWithRefs | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
+  const { base, rates } = useCurrencySettings()
+  const [showIn, setShowIn] = useShowIn(base)
+
+  const { total, thisMonth, monthCount } = useMemo(() => {
+    const month = new Date().toISOString().slice(0, 7)
+    const recent = expenses.filter((e) => e.date.startsWith(month))
+    const amount = (e: ExpenseWithRefs) => Number(e.amount)
+    return {
+      total: sumByCurrency(expenses, amount, (e) => e.currency),
+      thisMonth: sumByCurrency(recent, amount, (e) => e.currency),
+      monthCount: recent.length,
+    }
+  }, [expenses])
 
   useEffect(() => {
     if (searchParams.get("new") === "1") {
@@ -92,6 +110,22 @@ export default function ExpensesPage() {
       {loading ? (
         <Skeleton className="h-64" />
       ) : (
+        <>
+        <div className="flex justify-end">
+          <ShowInSelector value={showIn} onChange={setShowIn} base={base} rates={rates} />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Stat
+            label="Total expenses"
+            value={<Converted amounts={total} mode={showIn} base={base} rates={rates} />}
+            sub={`${expenses.length} ${expenses.length === 1 ? "expense" : "expenses"} in all`}
+          />
+          <Stat
+            label="This month"
+            value={<Converted amounts={thisMonth} mode={showIn} base={base} rates={rates} />}
+            sub={`${monthCount} ${monthCount === 1 ? "expense" : "expenses"} so far`}
+          />
+        </div>
         <DataTable
           columns={columns}
           data={expenses}
@@ -99,6 +133,7 @@ export default function ExpensesPage() {
           searchPlaceholder="Search expenses..."
           emptyMessage="No expenses yet. Log your first expense to track profitability."
         />
+        </>
       )}
 
       <ExpenseFormDialog
