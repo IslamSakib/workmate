@@ -178,8 +178,13 @@
 @layer base {
   html {
     font-size: 16px;
-    scrollbar-gutter: stable;
+    overflow-y: scroll; /* keep the scrollbar so opening menus/dialogs never shifts the page */
     -webkit-text-size-adjust: 100%;
+  }
+  /* Radix pads the body by the scrollbar width while a menu/dialog is open; the scrollbar never leaves, so cancel it. */
+  body[data-scroll-locked] {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
   }
   * {
     @apply border-border outline-ring/50;
