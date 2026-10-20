@@ -165,8 +165,8 @@ export function ExpenseFormDialog({ open, onOpenChange, expense, onSubmit }: Exp
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea id="description" rows={3} {...register("description")} />
+          <Label htmlFor="description">What was it for</Label>
+          <Textarea id="description" rows={3} placeholder="e.g. Bought a new GPU" {...register("description")} />
         </div>
 
         <div className="flex justify-end gap-2">

@@ -80,7 +80,7 @@ export function CommandPalette({
         setExpenses(
           rows
             .slice(0, SEARCH_LIMIT)
-            .map((e) => ({ id: e.id, label: e.category, sublabel: e.clients?.client_name, to: "/expenses" })),
+            .map((e) => ({ id: e.id, label: e.description?.trim() || e.category, sublabel: e.clients?.client_name ?? e.category, to: "/expenses" })),
         ),
       )
       .catch(() => setExpenses([]))

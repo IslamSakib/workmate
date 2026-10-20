@@ -95,7 +95,7 @@ export default function ExpensesPage() {
         <DataTable
           columns={columns}
           data={expenses}
-          searchKey="category"
+          searchKey="expense"
           searchPlaceholder="Search expenses..."
           emptyMessage="No expenses yet. Log your first expense to track profitability."
         />
@@ -115,7 +115,7 @@ export default function ExpensesPage() {
         open={!!deleting}
         onOpenChange={(open) => !open && setDeleting(null)}
         title="Delete expense?"
-        description={`This will permanently delete this ${deleting?.category ?? ""} expense.`}
+        description={`This will permanently delete the expense "${deleting?.description?.trim() || deleting?.category || ""}".`}
         onConfirm={handleDelete}
       />
     </div>

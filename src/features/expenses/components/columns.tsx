@@ -17,6 +17,14 @@ interface ColumnActions {
 
 export function getExpenseColumns({ onEdit, onDelete }: ColumnActions): ColumnDef<ExpenseWithRefs, unknown>[] {
   return [
+    {
+      id: "expense",
+      header: "Expense",
+      meta: { primary: true },
+      // What you bought or paid for; older entries without one fall back to the category.
+      accessorFn: (row) => `${row.description?.trim() || row.category} ${row.category}`,
+      cell: ({ row }) => <span className="font-medium">{row.original.description?.trim() || row.original.category}</span>,
+    },
     { accessorKey: "category", header: "Category" },
     {
       accessorKey: "amount",
