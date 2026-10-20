@@ -134,9 +134,10 @@ export default function DashboardPage() {
 
       <ShowInSelector value={showIn} onChange={setShowIn} base={base} rates={rates} />
 
-      <section aria-label="Key figures" className="grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-4">
+      <section aria-label="Key figures" className="grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-5">
         <Stat label="Hours this week" value={`${stats.hoursWeek.toFixed(1)}h`} sub={`${stats.hoursToday.toFixed(1)}h today`} />
         <Stat label="Revenue this month" value={<Converted amounts={stats.revenueMonth} baseTotal={stats.revenueBase.month} mode={showIn} base={base} rates={rates} />} />
+        <Stat label="Expenses this month" value={<Converted amounts={profit.expensesMonth} mode={showIn} base={base} rates={rates} />} />
         <Stat label="Profit this month" value={<Converted amounts={profit.profitMonth} baseTotal={profit.profitMonthBase} mode={showIn} base={base} rates={rates} />} sub="Revenue minus expenses" />
         <Stat
           label="Owed to you"

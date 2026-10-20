@@ -15,7 +15,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DatePicker } from "@/components/shared/DatePicker"
 import { DataTable } from "@/components/shared/DataTable"
 import { ExportCsvButton } from "@/components/shared/ExportCsvButton"
-import { currenciesIn, formatCurrency } from "@/lib/currency"
+import { currenciesIn, formatCurrency, type CurrencyAmounts } from "@/lib/currency"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { Stat } from "@/components/shared/Status"
 import { Converted, ShowInSelector } from "@/components/shared/Converted"
@@ -23,7 +23,7 @@ import { useCurrencySettings } from "@/hooks/useCurrencySettings"
 import { useShowIn } from "@/hooks/useShowIn"
 import type { CurrencyCode } from "@/types/database"
 import { formatDuration } from "@/lib/duration"
-import { buildChartSeries, getReportFixedFeeRevenue, getReportRows, summarize, toReportRows } from "@/features/reports/api"
+import { buildChartSeries, getReportExpenses, getReportFixedFeeRevenue, getReportRows, summarize, toReportRows } from "@/features/reports/api"
 import type { ReportChartPoint, ReportPreset, ReportRow, ReportSummary } from "@/features/reports/types"
 import { generateReportPdf } from "@/lib/pdf/reportPdf"
 import {
@@ -76,6 +76,7 @@ export default function ReportsPage() {
   const [summary, setSummary] = useState<ReportSummary | null>(null)
   const [rows, setRows] = useState<ReportRow[]>([])
   const [chart, setChart] = useState<ReportChartPoint[]>([])
+  const [expenseTotal, setExpenseTotal] = useState<CurrencyAmounts>({})
 
   const range = useMemo(() => {
     if (preset === "custom") {
@@ -94,9 +95,10 @@ export default function ReportsPage() {
   useEffect(() => {
     let active = true
     setLoading(true)
-    Promise.all([getReportRows(range.from, range.to), getReportFixedFeeRevenue(range.from, range.to)])
-      .then(([raw, flatFees]) => {
+    Promise.all([getReportRows(range.from, range.to), getReportFixedFeeRevenue(range.from, range.to), getReportExpenses(range.from, range.to)])
+      .then(([raw, flatFees, expenses]) => {
         if (!active) return
+        setExpenseTotal(expenses)
         setSummary(summarize(raw, flatFees))
         setRows(toReportRows(raw))
         setChart(buildChartSeries(raw, range.from, range.to, flatFees))
@@ -180,13 +182,14 @@ export default function ReportsPage() {
         <Skeleton className="h-64" />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
             <Stat label="Hours" value={formatDuration(summary.totalSeconds)} />
             <Stat
               label="Revenue"
               value={<Converted amounts={summary.totalRevenue} mode={showIn} base={base} rates={rates} />}
               sub={showIn === "original" ? undefined : "Converted at your Settings rates"}
             />
+            <Stat label="Expenses" value={<Converted amounts={expenseTotal} mode={showIn} base={base} rates={rates} />} sub="Costs dated in this period" />
             <Stat label="Projects" value={summary.projectCount} />
             <Stat label="Clients" value={summary.clientCount} />
           </div>

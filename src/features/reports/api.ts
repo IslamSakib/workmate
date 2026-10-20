@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabaseClient"
 import { listFixedFeeRevenue } from "@/features/invoices/api"
 import { sumByCurrency, addCurrencyAmounts, roundAmounts } from "@/lib/currency"
 import type { CurrencyCode } from "@/types/database"
+import type { CurrencyAmounts } from "@/lib/currency"
 import type { FixedFeeRevenueRow } from "@/features/invoices/types"
 import type { ReportChartPoint, ReportRow, ReportSummary } from "./types"
 
@@ -39,6 +40,17 @@ export async function getReportRows(from: Date, to: Date): Promise<RawTaskRow[]>
 
   if (error) throw error
   return (data ?? []) as unknown as RawTaskRow[]
+}
+
+/** Expenses dated within the range, totalled per currency. */
+export async function getReportExpenses(from: Date, to: Date): Promise<CurrencyAmounts> {
+  const { data, error } = await supabase
+    .from("expenses")
+    .select("amount, currency")
+    .gte("date", format(from, "yyyy-MM-dd"))
+    .lte("date", format(to, "yyyy-MM-dd"))
+  if (error) throw error
+  return sumByCurrency(data ?? [], (e) => Number(e.amount), (e) => e.currency)
 }
 
 /**
