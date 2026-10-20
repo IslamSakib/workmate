@@ -22,7 +22,7 @@ export const NAV_GROUPS: NavGroup[] = [
     heading: "Money",
     items: [
       { label: "Invoices", to: "/invoices" },
-      { label: "Recurring", to: "/recurring" },
+      { label: "Jobs & recurring", to: "/recurring" },
       { label: "Expenses", to: "/expenses" },
       { label: "Reports", to: "/reports" },
     ],

@@ -6,7 +6,7 @@ import type { RecurringInvoice, RecurringInvoiceWithRelations } from "./types"
 export async function listRecurringInvoices(): Promise<RecurringInvoiceWithRelations[]> {
   const { data, error } = await supabase
     .from("recurring_invoices")
-    .select("*, clients(client_name), projects(project_name)")
+    .select("*, clients(client_name), projects(project_name), recurring_amount_changes(effective_from, amount)")
     .order("created_at", { ascending: false })
   if (error) throw error
   return (data ?? []) as unknown as RecurringInvoiceWithRelations[]
@@ -71,4 +71,17 @@ export async function generateDueRecurringInvoices(): Promise<number> {
   const { data, error } = await supabase.rpc("generate_recurring_invoices")
   if (error) throw error
   return data ?? 0
+}
+
+/** A raise (or cut) that applies to pay periods starting on or after `effectiveFrom`. */
+export async function changeSalary(recurringId: string, amount: number, effectiveFrom: string): Promise<void> {
+  const accountId = useAuthStore.getState().accountId
+  if (!accountId) throw new Error("Not authenticated")
+  const { error } = await supabase
+    .from("recurring_amount_changes")
+    .upsert(
+      { recurring_id: recurringId, user_id: accountId, effective_from: effectiveFrom, amount },
+      { onConflict: "recurring_id,effective_from" },
+    )
+  if (error) throw error
 }

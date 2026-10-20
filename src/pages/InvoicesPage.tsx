@@ -23,6 +23,7 @@ import {
   updateInvoice,
 } from "@/features/invoices/api"
 import { InvoiceFormDialog } from "@/features/invoices/components/InvoiceFormDialog"
+import { PastInvoiceDialog } from "@/features/invoices/components/PastInvoiceDialog"
 import { RecordPaymentDialog, type PaymentInput } from "@/features/invoices/components/RecordPaymentDialog"
 import { balanceOf, getInvoiceColumns, isOverdue } from "@/features/invoices/components/columns"
 import type { BillableTask, InvoiceItem, InvoicePayment, InvoiceWithRelations } from "@/features/invoices/types"
@@ -60,6 +61,7 @@ export default function InvoicesPage() {
   const [editing, setEditing] = useState<InvoiceWithRelations | null>(null)
   const [editingItems, setEditingItems] = useState<InvoiceItem[]>([])
   const [deleting, setDeleting] = useState<InvoiceWithRelations | null>(null)
+  const [pastOpen, setPastOpen] = useState(false)
   const [paying, setPaying] = useState<InvoiceWithRelations | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -276,6 +278,9 @@ export default function InvoicesPage() {
                 { label: "Currency", value: (i) => i.currency },
               ]}
             />
+            <Button variant="outline" onClick={() => setPastOpen(true)}>
+              Add past invoice
+            </Button>
             <Button
               onClick={() => {
                 setEditing(null)
@@ -341,6 +346,8 @@ export default function InvoicesPage() {
         items={editingItems}
         onSubmit={handleSubmit}
       />
+
+      <PastInvoiceDialog open={pastOpen} onOpenChange={setPastOpen} onSaved={load} />
 
       <ConfirmDialog
         open={!!deleting}

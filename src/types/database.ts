@@ -232,6 +232,8 @@ export interface Database {
           last_generated_invoice_id: string | null
           /** fixed = bill `amount` each period; tasks = bill billable tasks logged in the previous period. */
           billing_mode: "fixed" | "tasks"
+          /** Null = client billing. A job is paid in arrears: its invoice covers the period before the pay date. */
+          employment_type: "full_time" | "part_time" | null
           amount: number | null
           description: string | null
           start_date: string | null
@@ -250,6 +252,19 @@ export interface Database {
           frequency: RecurringInvoiceFrequency
         }
         Update: Partial<Database["public"]["Tables"]["recurring_invoices"]["Row"]>
+        Relationships: []
+      }
+      recurring_amount_changes: {
+        Row: {
+          id: string
+          recurring_id: string
+          user_id: string
+          effective_from: string
+          amount: number
+          created_at: string
+        }
+        Insert: { recurring_id: string; user_id: string; effective_from: string; amount: number }
+        Update: Partial<{ effective_from: string; amount: number }>
         Relationships: []
       }
       invoice_items: {

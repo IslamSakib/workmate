@@ -7,6 +7,7 @@ export const recurringInvoiceSchema = z
     currency: z.enum(["USD", "BDT", "EUR", "GBP", "PHP"]),
     frequency: z.enum(["weekly", "monthly", "quarterly"]),
     billing_mode: z.enum(["fixed", "tasks"]),
+    employment_type: z.enum(["full_time", "part_time"]).nullable().optional(),
     amount: z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.number().positive().optional()),
     description: z.string().optional(),
     start_date: z.string().min(1, "Start date is required"),
@@ -23,7 +24,7 @@ export const recurringInvoiceSchema = z
   })
   .refine((v) => !v.ends_on || v.ends_on >= v.start_date, {
     path: ["ends_on"],
-    message: "End date must be after the start date",
+    message: "End date must be after the joining/start date",
   })
 
 export type RecurringInvoiceInput = z.infer<typeof recurringInvoiceSchema>

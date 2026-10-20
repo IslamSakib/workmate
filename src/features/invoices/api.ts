@@ -221,6 +221,32 @@ export async function updateInvoice(id: string, input: InvoiceInput, items: Bill
   return data as Invoice
 }
 
+export interface PastInvoiceInput {
+  client_id: string | null
+  project_id: string | null
+  currency: CurrencyCode
+  description: string
+  amount: number
+  issue_date: string
+  period_start: string | null
+  period_end: string | null
+  /** Set when the money already arrived; the invoice is then fully paid on this date. */
+  paid_date: string | null
+  method?: string | null
+}
+
+/** Records an invoice for work that was billed outside this app, optionally already paid in full. */
+export async function createPastInvoice(input: PastInvoiceInput): Promise<Invoice> {
+  const { description, amount, paid_date, method, ...rest } = input
+  const { data, error } = await supabase.rpc("create_invoice", {
+    p: { ...rest, kind: "standard", status: "sent", due_date: paid_date ?? rest.issue_date, items: [{ kind: "amount", name: description, amount }] },
+  })
+  if (error) throw friendlyError(error)
+  const inv = data as Invoice
+  if (paid_date) await recordPayment(inv.id, { amount, paid_date, method: method ?? null })
+  return inv
+}
+
 export interface CreditableAdvance {
   id: string
   invoice_number: string

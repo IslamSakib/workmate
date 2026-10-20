@@ -11,7 +11,7 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ value, onChange, placeholder = "Pick a date" }: DatePickerProps) {
-  const date = value ? new Date(value) : undefined
+  const date = value ? new Date(`${value.slice(0, 10)}T00:00:00`) : undefined
 
   return (
     <Popover>

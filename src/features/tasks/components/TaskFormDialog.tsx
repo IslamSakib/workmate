@@ -4,6 +4,7 @@ import { useForm, type Resolver } from "react-hook-form"
 import { toast } from "sonner"
 import { FormDialog } from "@/components/shared/FormDialog"
 import { DatePicker } from "@/components/shared/DatePicker"
+import { TimeField } from "@/components/shared/TimeField"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/select"
 import { useClientsList } from "@/hooks/useClientsList"
 import { useProjectsList } from "@/hooks/useProjectsList"
-import { taskSchema, type TaskInput } from "../schema"
+import { durationBetween, taskSchema, type TaskInput } from "../schema"
 import type { Task } from "../types"
 
 interface TaskFormDialogProps {
@@ -26,14 +27,6 @@ interface TaskFormDialogProps {
   onOpenChange: (open: boolean) => void
   task?: Task | null
   onSubmit: (values: TaskInput) => Promise<void>
-}
-
-function diffSeconds(start?: string | null, end?: string | null) {
-  if (!start || !end) return null
-  const [sh, sm] = start.split(":").map(Number)
-  const [eh, em] = end.split(":").map(Number)
-  const seconds = (eh * 60 + em - (sh * 60 + sm)) * 60
-  return seconds > 0 ? seconds : null
 }
 
 export function TaskFormDialog({ open, onOpenChange, task, onSubmit }: TaskFormDialogProps) {
@@ -87,7 +80,7 @@ export function TaskFormDialog({ open, onOpenChange, task, onSubmit }: TaskFormD
     }
   }, [open, task, reset])
 
-  const computedDuration = diffSeconds(startTime, endTime)
+  const computedDuration = durationBetween(startTime, endTime)
 
   useEffect(() => {
     if (computedDuration !== null) setValue("duration_seconds", computedDuration)
@@ -170,19 +163,19 @@ export function TaskFormDialog({ open, onOpenChange, task, onSubmit }: TaskFormD
             <Label>Duration</Label>
             <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm text-muted-foreground">
               {computedDuration !== null
-                ? `${Math.floor(computedDuration / 3600)}h ${Math.floor((computedDuration % 3600) / 60)}m`
+                ? `${Math.floor(computedDuration / 3600)}h ${Math.floor((computedDuration % 3600) / 60)}m${endTime <= startTime ? " (ends next day)" : ""}`
                 : "Set start and end time"}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="start_time">Start time</Label>
-            <Input id="start_time" type="time" {...register("start_time")} />
+            <Label>Start time</Label>
+            <TimeField value={startTime} onChange={(v) => setValue("start_time", v, { shouldValidate: true })} />
             {errors.start_time && <p className="text-sm text-destructive">{errors.start_time.message}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="end_time">End time</Label>
-            <Input id="end_time" type="time" {...register("end_time")} />
+            <Label>End time</Label>
+            <TimeField value={endTime} onChange={(v) => setValue("end_time", v, { shouldValidate: true })} />
             {errors.end_time && <p className="text-sm text-destructive">{errors.end_time.message}</p>}
           </div>
         </div>

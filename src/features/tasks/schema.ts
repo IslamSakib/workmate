@@ -1,5 +1,14 @@
 import { z } from "zod"
 
+/** Seconds from start to end. An end at or before the start means the next day (10 PM to 12 AM = 2h). Null if either is unset or they are equal. */
+export function durationBetween(start?: string | null, end?: string | null): number | null {
+  if (!start || !end) return null
+  const [sh, sm] = start.split(":").map(Number)
+  const [eh, em] = end.split(":").map(Number)
+  const minutes = (eh * 60 + em - (sh * 60 + sm) + 1440) % 1440
+  return minutes > 0 ? minutes * 60 : null
+}
+
 export const taskSchema = z
   .object({
     task_name: z.string().min(1, "Task name is required"),
@@ -12,8 +21,8 @@ export const taskSchema = z
     billable: z.boolean(),
     notes: z.string().optional(),
   })
-  .refine((data) => data.end_time > data.start_time, {
-    message: "End time must be after start time",
+  .refine((data) => durationBetween(data.start_time, data.end_time) !== null, {
+    message: "End time must be different from start time",
     path: ["end_time"],
   })
 

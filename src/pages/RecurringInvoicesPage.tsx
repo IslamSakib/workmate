@@ -17,6 +17,7 @@ import {
 } from "@/features/recurring-invoices/api"
 import { RecurringInvoiceFormDialog } from "@/features/recurring-invoices/components/RecurringInvoiceFormDialog"
 import { getRecurringInvoiceColumns } from "@/features/recurring-invoices/components/columns"
+import { ChangeSalaryDialog } from "@/features/recurring-invoices/components/ChangeSalaryDialog"
 import type { RecurringInvoiceWithRelations } from "@/features/recurring-invoices/types"
 import type { RecurringInvoiceInput } from "@/features/recurring-invoices/schema"
 
@@ -25,6 +26,7 @@ export default function RecurringInvoicesPage() {
   const [error, setError] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<RecurringInvoiceWithRelations | null>(null)
+  const [raising, setRaising] = useState<RecurringInvoiceWithRelations | null>(null)
   const [deleting, setDeleting] = useState<RecurringInvoiceWithRelations | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -61,7 +63,7 @@ export default function RecurringInvoicesPage() {
       toast.success("Saved")
     } else {
       await createRecurringInvoice(values)
-      toast.success("Recurring invoice started")
+      toast.success("Started")
     }
     setEditing(null)
     await load()
@@ -96,13 +98,14 @@ export default function RecurringInvoicesPage() {
     },
     onDelete: setDeleting,
     onToggle: toggle,
+    onChangeSalary: setRaising,
   })
 
   return (
     <>
       <PageHeader
-        title="Recurring"
-        description="Invoices created for you every period until you stop them: a salary, a retainer, any regular billing."
+        title="Jobs & recurring"
+        description="Your jobs and regular billing. A job is paid after the month is worked, and its invoice is created for you each month."
         actions={
           <Button
             onClick={() => {
@@ -110,7 +113,7 @@ export default function RecurringInvoicesPage() {
               setFormOpen(true)
             }}
           >
-            New recurring invoice
+            Add job or recurring
           </Button>
         }
       />
@@ -125,7 +128,7 @@ export default function RecurringInvoicesPage() {
           data={rows}
           searchKey="client"
           searchPlaceholder="Search"
-          emptyMessage="Nothing recurring yet. Add your monthly job or retainer and its invoices will create themselves."
+          emptyMessage="Nothing here yet. Add your job or a retainer and its invoices will create themselves."
         />
       )}
 
@@ -139,10 +142,12 @@ export default function RecurringInvoicesPage() {
         onSubmit={handleSubmit}
       />
 
+      <ChangeSalaryDialog job={raising} onClose={() => setRaising(null)} onSaved={load} />
+
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(open) => !open && setDeleting(null)}
-        title="Delete this recurring invoice?"
+        title="Delete this job or recurring invoice?"
         description="No more invoices will be created from it. Invoices already created are kept."
         onConfirm={remove}
       />

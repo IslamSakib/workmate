@@ -115,7 +115,7 @@ export function CommandPalette({
             Create Invoice
           </CommandItem>
           <CommandItem onSelect={() => create("/recurring")}>
-            Create Recurring Invoice
+            Add Job or Recurring Invoice
           </CommandItem>
           <CommandItem onSelect={() => create("/expenses")}>
             Create Expense
