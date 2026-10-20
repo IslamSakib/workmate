@@ -18,7 +18,7 @@ interface FormDialogProps {
 export function FormDialog({ open, onOpenChange, title, description, children }: FormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="top-[5vh] max-h-[90vh] translate-y-0 sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
