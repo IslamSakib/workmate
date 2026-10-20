@@ -15,6 +15,7 @@ import { listProjects } from "@/features/projects/api"
 import { listTasks } from "@/features/tasks/api"
 import { listInvoices } from "@/features/invoices/api"
 import { listExpenses } from "@/features/expenses/api"
+import { formatDate } from "@/lib/date"
 
 interface SearchResult {
   id: string
@@ -61,7 +62,7 @@ export function CommandPalette({
     listTasks()
       .then((rows) =>
         setTasks(
-          rows.slice(0, SEARCH_LIMIT).map((t) => ({ id: t.id, label: t.task_name, sublabel: t.date, to: "/tasks" })),
+          rows.slice(0, SEARCH_LIMIT).map((t) => ({ id: t.id, label: t.task_name, sublabel: formatDate(t.date), to: "/tasks" })),
         ),
       )
       .catch(() => setTasks([]))

@@ -29,6 +29,7 @@ import type {
   TrendPoint,
   UpcomingDeadline,
 } from "@/features/dashboard/types"
+import { formatDate } from "@/lib/date"
 
 interface DashboardData {
   stats: DashboardStats
@@ -157,7 +158,7 @@ export default function DashboardPage() {
                     <p className="truncate text-sm font-medium">
                       {d.invoice_number} <span className="font-normal text-muted-foreground">{d.client_name ?? ""}</span>
                     </p>
-                    <p className="text-xs text-muted-foreground">Due {d.due_date}</p>
+                    <p className="text-xs text-muted-foreground">Due {formatDate(d.due_date)}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <span className="text-sm tabular-nums">{formatCurrency(d.total, d.currency)}</span>

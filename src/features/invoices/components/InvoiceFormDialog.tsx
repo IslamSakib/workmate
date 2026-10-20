@@ -20,6 +20,7 @@ import { useProjectsList } from "@/hooks/useProjectsList"
 import { listBillableTasks, listCreditableAdvances, type CreditableAdvance } from "../api"
 import { invoiceSchema, type InvoiceInput } from "../schema"
 import { FLAT_FEE_ITEM_ID, type BillableTask, type Invoice, type InvoiceItem } from "../types"
+import { formatDate } from "@/lib/date"
 
 type Kind = NonNullable<InvoiceInput["kind"]>
 
@@ -442,7 +443,7 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
                       <span className="min-w-0">
                         <span className="block truncate font-medium">{t.task_name}</span>
                         <span className="block text-xs text-muted-foreground">
-                          {t.isFlatFee ? "One-time flat fee" : `${t.date} · ${formatDuration(t.duration_seconds)}${t.project_name ? ` · ${t.project_name}` : ""}`}
+                          {t.isFlatFee ? "One-time flat fee" : `${formatDate(t.date)} · ${formatDuration(t.duration_seconds)}${t.project_name ? ` · ${t.project_name}` : ""}`}
                         </span>
                       </span>
                     </span>

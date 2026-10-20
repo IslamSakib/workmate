@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { formatCurrency } from "@/lib/currency"
 import type { ProjectWithClient } from "../types"
+import { formatDate } from "@/lib/date"
 
 interface ColumnActions {
   onEdit: (project: ProjectWithClient) => void
@@ -60,7 +61,7 @@ export function getProjectColumns({ onEdit, onDelete }: ColumnActions): ColumnDe
     {
       accessorKey: "due_date",
       header: "Due",
-      cell: ({ row }) => row.original.due_date || "—",
+      cell: ({ row }) => formatDate(row.original.due_date, "—"),
     },
     {
       id: "actions",

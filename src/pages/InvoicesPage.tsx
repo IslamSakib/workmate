@@ -33,6 +33,7 @@ import { formatCurrency, sumByCurrency } from "@/lib/currency"
 import { getProfile, getSettings } from "@/features/settings/api"
 import { useAuthStore } from "@/store/authStore"
 import { cn } from "@/lib/utils"
+import { formatDate } from "@/lib/date"
 
 const TABS = [
   { id: "all", label: "All" },
@@ -213,7 +214,7 @@ export default function InvoicesPage() {
   const handleSendReminder = async (invoice: InvoiceWithRelations) => {
     const subject = encodeURIComponent(`Reminder: invoice ${invoice.invoice_number}`)
     const body = encodeURIComponent(
-      `Hi${invoice.clients?.client_name ? ` ${invoice.clients.client_name}` : ""},\n\nThis is a reminder that invoice ${invoice.invoice_number} for ${formatCurrency(balanceOf(invoice), invoice.currency)} is ${isOverdue(invoice) ? "overdue" : "due"}${invoice.due_date ? ` (due ${invoice.due_date})` : ""}. Please let me know if you have any questions.\n\nThanks!`,
+      `Hi${invoice.clients?.client_name ? ` ${invoice.clients.client_name}` : ""},\n\nThis is a reminder that invoice ${invoice.invoice_number} for ${formatCurrency(balanceOf(invoice), invoice.currency)} is ${isOverdue(invoice) ? "overdue" : "due"}${invoice.due_date ? ` (due ${formatDate(invoice.due_date)})` : ""}. Please let me know if you have any questions.\n\nThanks!`,
     )
     const link = document.createElement("a")
     link.href = `mailto:${invoice.clients?.email ?? ""}?subject=${subject}&body=${body}`

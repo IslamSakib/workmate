@@ -9,6 +9,7 @@ import {
 import { InvoiceStatus } from "@/components/shared/Status"
 import { formatCurrency } from "@/lib/currency"
 import type { InvoiceWithRelations } from "../types"
+import { formatDate } from "@/lib/date"
 
 interface ColumnActions {
   onEdit: (invoice: InvoiceWithRelations) => void
@@ -58,7 +59,7 @@ export function getInvoiceColumns({
       accessorKey: "due_date",
       header: "Due",
       meta: { secondary: true },
-      cell: ({ row }) => row.original.due_date || "-",
+      cell: ({ row }) => formatDate(row.original.due_date),
     },
     {
       accessorKey: "total",

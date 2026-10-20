@@ -36,6 +36,7 @@ import {
   YAxis,
 } from "recharts"
 import type { ColumnDef } from "@tanstack/react-table"
+import { formatDate } from "@/lib/date"
 
 function getPresetRange(preset: ReportPreset): { from: Date; to: Date } {
   const now = new Date()
@@ -54,7 +55,7 @@ function getPresetRange(preset: ReportPreset): { from: Date; to: Date } {
 }
 
 const columns: ColumnDef<ReportRow, unknown>[] = [
-  { accessorKey: "date", header: "Date" },
+  { accessorKey: "date", header: "Date", cell: ({ row }) => formatDate(row.original.date) },
   { accessorKey: "task_name", header: "Task" },
   { accessorKey: "project_name", header: "Project", cell: ({ row }) => row.original.project_name ?? "—" },
   { accessorKey: "client_name", header: "Client", cell: ({ row }) => row.original.client_name ?? "—" },

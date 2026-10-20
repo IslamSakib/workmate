@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 import { useCurrencySettings } from "@/hooks/useCurrencySettings"
 import { getInvoicePayments } from "../api"
 import type { InvoicePayment, InvoiceWithRelations } from "../types"
+import { formatDate } from "@/lib/date"
 
 export interface PaymentInput {
   amount: number
@@ -146,7 +147,7 @@ export function RecordPaymentDialog({ open, onOpenChange, invoice, onSubmit, onD
                     <span className="min-w-0">
                       <Status tone={label === "Final" || label === "Full" ? "good" : label === "Advance" ? "info" : "warn"}>{label}</Status>{" "}
                       <span className="text-muted-foreground">
-                        {[p.paid_date, p.method, p.reference].filter(Boolean).join(", ")}
+                        {[formatDate(p.paid_date), p.method, p.reference].filter(Boolean).join(", ")}
                       </span>
                     </span>
                     <span className="flex shrink-0 items-center gap-1.5">
@@ -233,7 +234,7 @@ export function RecordPaymentDialog({ open, onOpenChange, invoice, onSubmit, onD
         title="Remove this payment?"
         description={
           deleting
-            ? `This removes the ${formatCurrency(Number(deleting.amount), cur)} payment from ${deleting.paid_date} and recalculates the balance.`
+            ? `This removes the ${formatCurrency(Number(deleting.amount), cur)} payment from ${formatDate(deleting.paid_date)} and recalculates the balance.`
             : ""
         }
         onConfirm={remove}

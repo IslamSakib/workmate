@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
-import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -9,6 +8,7 @@ import { formatCurrency } from "@/lib/currency"
 import { formatDuration } from "@/lib/duration"
 import { getPublicInvoice } from "@/features/public-invoice/api"
 import type { PublicInvoice } from "@/features/public-invoice/types"
+import { formatDate } from "@/lib/date"
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   draft: "secondary",
@@ -67,12 +67,12 @@ export default function PublicInvoicePage() {
               <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                 <div>
                   <p className="text-muted-foreground">Issued</p>
-                  <p className="font-medium">{format(new Date(invoice.issue_date), "MMM d, yyyy")}</p>
+                  <p className="font-medium">{formatDate(invoice.issue_date)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Due</p>
                   <p className="font-medium">
-                    {invoice.due_date ? format(new Date(invoice.due_date), "MMM d, yyyy") : "—"}
+                    {invoice.due_date ? formatDate(invoice.due_date) : "—"}
                   </p>
                 </div>
                 <div>
@@ -101,7 +101,7 @@ export default function PublicInvoicePage() {
                         <tr key={i} className="border-t">
                           <td className="px-3 py-2">{item.task_name}</td>
                           <td className="px-3 py-2 text-muted-foreground">
-                            {format(new Date(item.task_date), "MMM d, yyyy")}
+                            {formatDate(item.task_date)}
                           </td>
                           <td className="px-3 py-2 text-muted-foreground">
                             {item.duration_seconds > 0 ? formatDuration(item.duration_seconds) : "—"}

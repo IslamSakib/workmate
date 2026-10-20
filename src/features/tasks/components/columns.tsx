@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { formatDuration } from "@/lib/duration"
 import type { TaskWithRelations } from "../types"
+import { formatDate } from "@/lib/date"
 
 interface ColumnActions {
   onEdit: (task: TaskWithRelations) => void
@@ -49,7 +50,7 @@ export function getTaskColumns({
         ]
       : []),
     { accessorKey: "task_name", header: "Task" },
-    { accessorKey: "date", header: "Date" },
+    { accessorKey: "date", header: "Date", cell: ({ row }) => formatDate(row.original.date) },
     {
       id: "project",
       header: "Project",

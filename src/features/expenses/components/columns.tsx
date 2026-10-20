@@ -1,4 +1,3 @@
-import { format } from "date-fns"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,6 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { formatCurrency } from "@/lib/currency"
 import type { ExpenseWithRefs } from "../types"
+import { formatDate } from "@/lib/date"
 
 interface ColumnActions {
   onEdit: (expense: ExpenseWithRefs) => void
@@ -36,7 +36,7 @@ export function getExpenseColumns({ onEdit, onDelete }: ColumnActions): ColumnDe
     {
       accessorKey: "date",
       header: "Date",
-      cell: ({ row }) => format(new Date(row.original.date), "MMM d, yyyy"),
+      cell: ({ row }) => formatDate(row.original.date),
     },
     {
       id: "actions",

@@ -1,6 +1,7 @@
 import { createPdfContext, drawDivider, drawKeyValueRow, drawTable, drawTitle, downloadPdf } from "./shared"
 import { formatCurrencyAmounts, type CurrencyAmounts } from "@/lib/currency"
 import { formatDuration } from "@/lib/duration"
+import { formatDate } from "@/lib/date"
 
 export interface ReportPdfRow {
   date: string
@@ -42,7 +43,7 @@ export async function generateReportPdf(data: ReportPdfData) {
       { label: "Duration", width: 64, align: "right" },
     ],
     data.rows.map((row) => [
-      row.date,
+      formatDate(row.date),
       row.task_name,
       row.project_name ?? "—",
       row.client_name ?? "—",

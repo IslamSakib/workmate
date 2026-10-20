@@ -13,6 +13,7 @@ import {
 } from "./shared"
 import { formatDuration } from "@/lib/duration"
 import type { CurrencyCode } from "@/types/database"
+import { formatDate } from "../date"
 
 export interface InvoicePdfItem {
   task_name: string
@@ -124,9 +125,9 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
     rightText(ctx, value, PAGE_WIDTH - MARGIN, rightY, 10, true)
     rightY -= 14
   }
-  detail("Issued", data.issue_date)
-  if (data.due_date) detail("Due", data.due_date)
-  if (data.period_start && data.period_end) detail("Period", `${data.period_start} to ${data.period_end}`)
+  detail("Issued", formatDate(data.issue_date))
+  if (data.due_date) detail("Due", formatDate(data.due_date))
+  if (data.period_start && data.period_end) detail("Period", `${formatDate(data.period_start)} to ${formatDate(data.period_end)}`)
   detail("Currency", data.currency)
 
   ctx.cursorY = Math.min(leftY, rightY) - 18
@@ -144,7 +145,7 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
     ],
     data.items.map((i) => [
       i.task_name,
-      i.task_date,
+      formatDate(i.task_date),
       isHours(i) ? formatDuration(i.duration_seconds) : "-",
       isHours(i) ? money(i.rate) : "-",
       money(i.amount),
@@ -173,7 +174,7 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
     drawText(ctx, "PAYMENTS RECEIVED", { x: MARGIN, y: ctx.cursorY, size: 8, bold: true, color: GREY })
     ctx.cursorY -= 14
     for (const p of data.payments) {
-      const label = [p.date, p.method, p.reference].filter(Boolean).join("  ")
+      const label = [formatDate(p.date), p.method, p.reference].filter(Boolean).join("  ")
       drawText(ctx, label, { x: MARGIN, y: ctx.cursorY, size: 10, color: BLACK })
       rightText(ctx, money(p.amount), PAGE_WIDTH - MARGIN, ctx.cursorY, 10)
       ctx.cursorY -= 14
@@ -224,7 +225,7 @@ export async function generateReceiptPdf(data: {
   }
   row("Received from", data.client_name, true)
   row("Invoice", data.invoice_number)
-  row("Payment date", data.payment.date)
+  row("Payment date", formatDate(data.payment.date))
   if (data.payment.method) row("Method", data.payment.method)
   if (data.payment.reference) row("Reference", data.payment.reference)
   ctx.cursorY -= 6
