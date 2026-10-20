@@ -48,7 +48,7 @@ export function ChangeSalaryDialog({ job, onClose, onSaved }: Props) {
     <FormDialog
       open={!!job}
       onOpenChange={(o) => !o && onClose()}
-      title="Change salary"
+      title={job?.employment_type ? "Change salary" : "Change amount"}
       description={
         job
           ? `Current: ${now == null ? "hours-based" : formatCurrency(now, job.currency)}. Invoices already created keep their old amount.`
@@ -57,7 +57,7 @@ export function ChangeSalaryDialog({ job, onClose, onSaved }: Props) {
     >
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="new-salary">New amount per month</Label>
+          <Label htmlFor="new-salary">{job?.employment_type ? "New salary per month" : "New amount per period"}</Label>
           <Input id="new-salary" type="number" step="0.01" min="0" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </div>
         <div className="space-y-2">

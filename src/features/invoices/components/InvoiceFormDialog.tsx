@@ -106,7 +106,9 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
   const status = watch("status")
   const project = useMemo(() => projects.find((p) => p.id === projectId), [projects, projectId])
   const editing = !!invoice
-  const isAmountKind = kind !== "standard"
+  // A salary or past invoice has one fixed amount line instead of tracked tasks: edit it as an amount, keep it "standard".
+  const fixedLine = editing && kind === "standard" && (items ?? []).some((i) => i.kind === "amount")
+  const isAmountKind = kind !== "standard" || fixedLine
 
   // Tasks for a standard invoice
   useEffect(() => {
@@ -224,8 +226,8 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
           ...values,
           kind,
           invoice_number: values.invoice_number || undefined,
-          period_start: isAmountKind ? values.issue_date : values.period_start,
-          period_end: isAmountKind ? values.issue_date : values.period_end,
+          period_start: isAmountKind && !fixedLine ? values.issue_date : values.period_start,
+          period_end: isAmountKind && !fixedLine ? values.issue_date : values.period_end,
         },
         lines,
       )
@@ -240,7 +242,7 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
       open={open}
       onOpenChange={onOpenChange}
       title={editing ? `Edit ${invoice?.invoice_number}` : "New invoice"}
-      description={KINDS.find((k) => k.value === kind)?.hint ?? ""}
+      description={fixedLine ? "A fixed-amount invoice, such as a salary. Change the amount, description or work period." : (KINDS.find((k) => k.value === kind)?.hint ?? "")}
     >
       <form onSubmit={handleSubmit(submit)} className="space-y-5">
         {!editing && (
@@ -354,7 +356,7 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
           <div className="space-y-4 rounded-lg border p-4">
             <div className="space-y-2">
               <Label>Amount</Label>
-              <div className="inline-flex overflow-hidden rounded-md border">
+              <div className={cn("inline-flex overflow-hidden rounded-md border", fixedLine && "hidden")}>
                 {(
                   [
                     ["percent", "Percent of project price"],
@@ -372,7 +374,7 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
                 ))}
               </div>
             </div>
-            {amountMode === "percent" ? (
+            {amountMode === "percent" && !fixedLine ? (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="percent">Percent</Label>
@@ -398,6 +400,18 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
               <Label htmlFor="line">Line text on the invoice</Label>
               <Input id="line" value={lineText} placeholder={defaultLine} onChange={(e) => setLineText(e.target.value)} />
             </div>
+            {fixedLine && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Work period start</Label>
+                  <DatePicker value={periodStart} onChange={(v) => setValue("period_start", v ?? "")} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Work period end</Label>
+                  <DatePicker value={periodEnd} onChange={(v) => setValue("period_end", v ?? "")} />
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <>
