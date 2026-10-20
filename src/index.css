@@ -181,6 +181,30 @@
     overflow-y: scroll; /* keep the scrollbar so opening menus/dialogs never shifts the page */
     -webkit-text-size-adjust: 100%;
   }
+  /* Tailwind v4 resets buttons to the arrow cursor; clickable things should show a hand. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"],
+  [role="checkbox"],
+  [role="radio"],
+  [role="switch"],
+  [role="combobox"],
+  a[href],
+  summary,
+  select,
+  label[for],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"],
+  [data-disabled] {
+    cursor: not-allowed;
+  }
   /* Radix pads the body by the scrollbar width while a menu/dialog is open; the scrollbar never leaves, so cancel it. */
   body[data-scroll-locked] {
     margin-right: 0 !important;

@@ -8,6 +8,6 @@ REMOTE="${DEPLOY_PATH:-domains/$SITE/public_html}"   # relative to the SSH home 
 KEY="$HOME/.ssh/hostinger_wrkbase"   # same key as "wrkbase-deploy" in hPanel > SSH Access
 
 npm run build
-ssh -i "$KEY" -p $PORT -o StrictHostKeyChecking=accept-new $USER@$HOST "mkdir -p $REMOTE && rm -rf $REMOTE/assets"
+ssh -i "$KEY" -p $PORT -o StrictHostKeyChecking=accept-new $USER@$HOST "mkdir -p $REMOTE"   # keep old assets so tabs open during a deploy still work
 scp -i "$KEY" -P $PORT -r dist/. "$USER@$HOST:$REMOTE/"   # dist/. includes the hidden .htaccess
 echo "Deployed to https://$SITE (hard-refresh with Ctrl+Shift+R)"
