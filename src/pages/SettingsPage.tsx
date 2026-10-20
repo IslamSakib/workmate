@@ -1,3 +1,4 @@
+import { PasswordInput } from "@/components/shared/PasswordInput"
 import { useEffect, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, type Resolver } from "react-hook-form"
@@ -235,14 +236,14 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="password">New password</Label>
-                <Input id="password" type="password" {...passwordForm.register("password")} />
+                <PasswordInput id="password" {...passwordForm.register("password")} />
                 {passwordForm.formState.errors.password && (
                   <p className="text-sm text-destructive">{passwordForm.formState.errors.password.message}</p>
                 )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm new password</Label>
-                <Input id="confirmPassword" type="password" {...passwordForm.register("confirmPassword")} />
+                <PasswordInput id="confirmPassword" {...passwordForm.register("confirmPassword")} />
                 {passwordForm.formState.errors.confirmPassword && (
                   <p className="text-sm text-destructive">{passwordForm.formState.errors.confirmPassword.message}</p>
                 )}
