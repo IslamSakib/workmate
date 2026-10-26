@@ -14,7 +14,6 @@ import { listClients } from "@/features/clients/api"
 import { listProjects } from "@/features/projects/api"
 import { listTasks } from "@/features/tasks/api"
 import { listInvoices } from "@/features/invoices/api"
-import { listExpenses } from "@/features/expenses/api"
 import { formatDate } from "@/lib/date"
 
 interface SearchResult {
@@ -39,7 +38,6 @@ export function CommandPalette({
   const [projects, setProjects] = useState<SearchResult[]>([])
   const [tasks, setTasks] = useState<SearchResult[]>([])
   const [invoices, setInvoices] = useState<SearchResult[]>([])
-  const [expenses, setExpenses] = useState<SearchResult[]>([])
 
   useEffect(() => {
     if (!open) return
@@ -75,15 +73,6 @@ export function CommandPalette({
         ),
       )
       .catch(() => setInvoices([]))
-    listExpenses()
-      .then((rows) =>
-        setExpenses(
-          rows
-            .slice(0, SEARCH_LIMIT)
-            .map((e) => ({ id: e.id, label: e.description?.trim() || e.category, sublabel: e.clients?.client_name ?? e.category, to: "/expenses" })),
-        ),
-      )
-      .catch(() => setExpenses([]))
   }, [open])
 
   const go = (to: string) => {
@@ -117,9 +106,6 @@ export function CommandPalette({
           </CommandItem>
           <CommandItem onSelect={() => create("/recurring")}>
             Add Job or Recurring Invoice
-          </CommandItem>
-          <CommandItem onSelect={() => create("/expenses")}>
-            Create Expense
           </CommandItem>
         </CommandGroup>
 
@@ -182,20 +168,6 @@ export function CommandPalette({
                 <CommandItem key={i.id} onSelect={() => go(i.to)}>
                   {i.label}
                   {i.sublabel && <span className="text-muted-foreground">— {i.sublabel}</span>}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </>
-        )}
-
-        {expenses.length > 0 && (
-          <>
-            <CommandSeparator />
-            <CommandGroup heading="Expenses">
-              {expenses.map((e) => (
-                <CommandItem key={e.id} onSelect={() => go(e.to)}>
-                  {e.label}
-                  {e.sublabel && <span className="text-muted-foreground">— {e.sublabel}</span>}
                 </CommandItem>
               ))}
             </CommandGroup>

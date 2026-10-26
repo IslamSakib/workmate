@@ -12,11 +12,9 @@ import { listFixedFeeRevenue } from "@/features/invoices/api"
 import {
   addBaseTotal,
   addCurrencyAmounts,
-  convertAmounts,
   EMPTY_BASE_TOTAL,
   rateToBase,
   roundAmounts,
-  subtractCurrencyAmounts,
   sumByCurrency,
   type BaseTotal,
   type RateTable,
@@ -27,7 +25,6 @@ import type {
   DashboardStats,
   GrowthDeltas,
   OutstandingInvoices,
-  ProfitMetrics,
   RecentActivityRow,
   RecentTaskRow,
   TrendPoint,
@@ -162,91 +159,6 @@ export async function getDashboardStats(ctx: CurrencyContext): Promise<Dashboard
     totalTasks: totalTasks ?? 0,
     utilizationRate: month.hours > 0 ? (month.billableHours / month.hours) * 100 : 0,
   }
-}
-
-export async function getProfitMetrics(stats: DashboardStats, ctx: CurrencyContext): Promise<ProfitMetrics> {
-  const yearStart = startOfYear(new Date())
-  const monthStart = startOfMonth(new Date())
-  const { data, error } = await supabase
-    .from("expenses")
-    .select("amount, date, currency")
-    .gte("date", format(yearStart, "yyyy-MM-dd"))
-  if (error) throw error
-
-  const rows = data ?? []
-  const expensesYear = sumByCurrency(rows, (r) => Number(r.amount), (r) => r.currency)
-  const expensesMonth = sumByCurrency(
-    rows.filter((r) => new Date(r.date) >= monthStart),
-    (r) => Number(r.amount),
-    (r) => r.currency,
-  )
-
-  const profitMonth = subtractCurrencyAmounts(stats.revenueMonth, expensesMonth)
-  const profitYear = subtractCurrencyAmounts(stats.revenueYear, expensesYear)
-
-  // A margin % only means something for a single currency — blending
-  // differently-scaled currencies into one ratio would be arbitrary, so it's
-  // only shown when exactly one currency is in play this month (same
-  // "null when meaningless" pattern as the zero-revenue case below).
-  const monthCurrencies = Object.keys(stats.revenueMonth) as CurrencyCode[]
-  const singleCurrency = monthCurrencies.length === 1 ? monthCurrencies[0] : null
-  const revenueMonthSingle = singleCurrency ? (stats.revenueMonth[singleCurrency] ?? 0) : 0
-  const profitMonthSingle = singleCurrency ? (profitMonth[singleCurrency] ?? 0) : 0
-
-  const expensesMonthBase = convertAmounts(expensesMonth, ctx.base, ctx.base, ctx.rates)
-  const profitMonthBase: BaseTotal = {
-    total: stats.revenueBase.month.total - expensesMonthBase.total,
-    missing: [...new Set([...stats.revenueBase.month.missing, ...expensesMonthBase.missing])],
-  }
-
-  return {
-    expensesMonth,
-    expensesYear,
-    profitMonth,
-    profitYear,
-    profitMonthBase,
-    profitMarginMonth:
-      singleCurrency && revenueMonthSingle > 0 ? (profitMonthSingle / revenueMonthSingle) * 100 : null,
-  }
-}
-
-/**
- * Merges expenses into an already-fetched revenue/hours trend (see
- * getMonthlyTrend) rather than re-deriving it, reusing the same label
- * sequence so the two series stay aligned. Implemented standalone rather
- * than folding into getMonthlyTrend to avoid touching its existing,
- * already-relied-upon revenue/hours logic.
- */
-export async function getProfitTrend(revenueTrend: TrendPoint[]): Promise<TrendPoint[]> {
-  if (revenueTrend.length === 0) return revenueTrend
-
-  const yearAgo = subMonths(new Date(), revenueTrend.length - 1)
-  const { data, error } = await supabase
-    .from("expenses")
-    .select("amount, date, currency")
-    .gte("date", format(startOfMonth(yearAgo), "yyyy-MM-dd"))
-  if (error) throw error
-
-  const rows = data ?? []
-  const now = new Date()
-
-  return revenueTrend.map((point, i) => {
-    const monthDate = subMonths(now, revenueTrend.length - 1 - i)
-    const expenses = sumByCurrency(
-      rows.filter(
-        (r) =>
-          new Date(r.date).getMonth() === monthDate.getMonth() &&
-          new Date(r.date).getFullYear() === monthDate.getFullYear(),
-      ),
-      (r) => Number(r.amount),
-      (r) => r.currency,
-    )
-    return {
-      ...point,
-      expenses: roundAmounts(expenses),
-      profit: roundAmounts(subtractCurrencyAmounts(point.revenue, expenses)),
-    }
-  })
 }
 
 export async function getOutstandingInvoices(): Promise<OutstandingInvoices> {

@@ -24,9 +24,8 @@ export interface BillableTask {
   credit_invoice_id?: string
 }
 
-/** One flat-fee line item (a fixed-price project's total), as actually
- * invoiced — used to recognize that revenue on the invoice's issue_date
- * rather than per logged task. */
+/** What has been paid on one non-hourly invoice, recognized as revenue on
+ * the invoice's issue date, never the unpaid remainder. */
 export interface FixedFeeRevenueRow {
   invoice_id: string
   amount: number

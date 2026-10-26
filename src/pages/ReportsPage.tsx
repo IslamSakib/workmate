@@ -15,7 +15,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DatePicker } from "@/components/shared/DatePicker"
 import { DataTable } from "@/components/shared/DataTable"
 import { ExportCsvButton } from "@/components/shared/ExportCsvButton"
-import { currenciesIn, formatCurrency, type CurrencyAmounts } from "@/lib/currency"
+import { currenciesIn, formatCurrency, sumByCurrency } from "@/lib/currency"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { Stat } from "@/components/shared/Status"
 import { Converted, ShowInSelector } from "@/components/shared/Converted"
@@ -23,8 +23,10 @@ import { useCurrencySettings } from "@/hooks/useCurrencySettings"
 import { useShowIn } from "@/hooks/useShowIn"
 import type { CurrencyCode } from "@/types/database"
 import { formatDuration } from "@/lib/duration"
-import { buildChartSeries, getReportExpenses, getReportFixedFeeRevenue, getReportRows, summarize, toReportRows } from "@/features/reports/api"
+import { buildChartSeries, getReportFixedFeeRevenue, getReportPending, getReportRows, summarize, toReportRows } from "@/features/reports/api"
 import type { ReportChartPoint, ReportPreset, ReportRow, ReportSummary } from "@/features/reports/types"
+import type { PendingRow } from "@/features/invoices/api"
+import { listProjects } from "@/features/projects/api"
 import { generateReportPdf } from "@/lib/pdf/reportPdf"
 import {
   Bar,
@@ -76,7 +78,9 @@ export default function ReportsPage() {
   const [summary, setSummary] = useState<ReportSummary | null>(null)
   const [rows, setRows] = useState<ReportRow[]>([])
   const [chart, setChart] = useState<ReportChartPoint[]>([])
-  const [expenseTotal, setExpenseTotal] = useState<CurrencyAmounts>({})
+  const [projects, setProjects] = useState<{ id: string; project_name: string }[]>([])
+  const [projectId, setProjectId] = useState("all")
+  const [pending, setPending] = useState<PendingRow[]>([])
 
   const range = useMemo(() => {
     if (preset === "custom") {
@@ -95,10 +99,11 @@ export default function ReportsPage() {
   useEffect(() => {
     let active = true
     setLoading(true)
-    Promise.all([getReportRows(range.from, range.to), getReportFixedFeeRevenue(range.from, range.to), getReportExpenses(range.from, range.to)])
-      .then(([raw, flatFees, expenses]) => {
+    const pid = projectId === "all" ? undefined : projectId
+    Promise.all([getReportRows(range.from, range.to, pid), getReportFixedFeeRevenue(range.from, range.to, pid), getReportPending(pid)])
+      .then(([raw, flatFees, pend]) => {
         if (!active) return
-        setExpenseTotal(expenses)
+        setPending(pend)
         setSummary(summarize(raw, flatFees))
         setRows(toReportRows(raw))
         setChart(buildChartSeries(raw, range.from, range.to, flatFees))
@@ -108,7 +113,11 @@ export default function ReportsPage() {
     return () => {
       active = false
     }
-  }, [range.from, range.to])
+  }, [range.from, range.to, projectId])
+
+  useEffect(() => {
+    listProjects().then(setProjects).catch(() => setProjects([]))
+  }, [])
 
   const handleExportReport = () => {
     if (!summary) return
@@ -174,6 +183,19 @@ export default function ReportsPage() {
               <DatePicker value={customTo} onChange={setCustomTo} placeholder="To" />
             </div>
           )}
+          <select
+            aria-label="Project"
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+          >
+            <option value="all">All projects</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.project_name}
+              </option>
+            ))}
+          </select>
         </div>
         <ShowInSelector value={showIn} onChange={setShowIn} base={base} rates={rates} />
       </div>
@@ -187,9 +209,13 @@ export default function ReportsPage() {
             <Stat
               label="Revenue"
               value={<Converted amounts={summary.totalRevenue} mode={showIn} base={base} rates={rates} />}
-              sub={showIn === "original" ? undefined : "Converted at your Settings rates"}
+              sub="Hourly work as logged; fixed projects as paid"
             />
-            <Stat label="Expenses" value={<Converted amounts={expenseTotal} mode={showIn} base={base} rates={rates} />} sub="Costs dated in this period" />
+            <Stat
+              label="Pending to receive"
+              value={<Converted amounts={sumByCurrency(pending, (p) => p.pending, (p) => p.currency)} mode={showIn} base={base} rates={rates} />}
+              sub="Unpaid fixed-project balance and open invoices"
+            />
             <Stat label="Projects" value={summary.projectCount} />
             <Stat label="Clients" value={summary.clientCount} />
           </div>
@@ -241,6 +267,34 @@ export default function ReportsPage() {
               </div>
             </section>
           </div>
+
+          {pending.length > 0 && (
+            <section aria-label="Pending payments">
+              <h2 className="mb-2 text-sm font-semibold">Pending payments</h2>
+              <div className="overflow-x-auto rounded-md border bg-card">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="p-2 font-medium">Project</th>
+                      <th className="p-2 text-right font-medium">Price</th>
+                      <th className="p-2 text-right font-medium">Paid</th>
+                      <th className="p-2 text-right font-medium">Pending</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pending.map((p, i) => (
+                      <tr key={i} className="border-b last:border-0">
+                        <td className="p-2">{p.project_name}</td>
+                        <td className="p-2 text-right tabular-nums">{p.price == null ? "—" : formatCurrency(p.price, p.currency)}</td>
+                        <td className="p-2 text-right tabular-nums">{formatCurrency(p.paid, p.currency)}</td>
+                        <td className="p-2 text-right font-semibold tabular-nums">{formatCurrency(p.pending, p.currency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
 
           <DataTable
             columns={columns}

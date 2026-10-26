@@ -51,28 +51,6 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["clients"]["Row"]>
         Relationships: []
       }
-      expenses: {
-        Row: {
-          id: string
-          user_id: string
-          created_by: string | null
-          client_id: string | null
-          project_id: string | null
-          category: string
-          amount: number
-          currency: CurrencyCode
-          date: string
-          description: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: Partial<Database["public"]["Tables"]["expenses"]["Row"]> & {
-          category: string
-          amount: number
-        }
-        Update: Partial<Database["public"]["Tables"]["expenses"]["Row"]>
-        Relationships: []
-      }
       retainers: {
         Row: {
           id: string

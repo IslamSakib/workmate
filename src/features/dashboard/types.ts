@@ -49,19 +49,6 @@ export interface TrendPoint {
   hours: number
   /** Grouped per currency — see DashboardStats. */
   revenue: CurrencyAmounts
-  expenses?: CurrencyAmounts
-  profit?: CurrencyAmounts
-}
-
-export interface ProfitMetrics {
-  expensesMonth: CurrencyAmounts
-  expensesYear: CurrencyAmounts
-  profitMonth: CurrencyAmounts
-  profitYear: CurrencyAmounts
-  profitMonthBase: BaseTotal
-  /** null when revenue is 0 or more than one currency is in play this month
-   * (a blended margin % across currencies would be meaningless). */
-  profitMarginMonth: number | null
 }
 
 export interface RecentTaskRow {

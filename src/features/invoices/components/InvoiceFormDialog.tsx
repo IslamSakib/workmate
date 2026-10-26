@@ -430,7 +430,7 @@ export function InvoiceFormDialog({ open, onOpenChange, invoice, items, onSubmit
             <div className="space-y-2">
               <Label>Tasks in this billing period</Label>
               <div
-                className={`max-h-64 min-h-24 space-y-1 overflow-y-auto rounded-md border p-2 transition-opacity ${loadingTasks ? "opacity-60" : ""}`}
+                className={`relative max-h-64 min-h-24 space-y-1 overflow-y-auto rounded-md border p-2 transition-opacity ${loadingTasks ? "opacity-60" : ""}`}
               >
                 {loadingTasks && tasks.length === 0 && <p className="p-2 text-sm text-muted-foreground">Loading tasks</p>}
                 {!loadingTasks && tasks.length === 0 && (

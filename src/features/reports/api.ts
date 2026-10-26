@@ -1,9 +1,8 @@
 import { differenceInCalendarDays, eachDayOfInterval, eachMonthOfInterval, format } from "date-fns"
 import { supabase } from "@/lib/supabaseClient"
-import { listFixedFeeRevenue } from "@/features/invoices/api"
+import { listFixedFeeRevenue, listPending } from "@/features/invoices/api"
 import { sumByCurrency, addCurrencyAmounts, roundAmounts } from "@/lib/currency"
 import type { CurrencyCode } from "@/types/database"
-import type { CurrencyAmounts } from "@/lib/currency"
 import type { FixedFeeRevenueRow } from "@/features/invoices/types"
 import type { ReportChartPoint, ReportRow, ReportSummary } from "./types"
 
@@ -28,8 +27,8 @@ function revenueFor(t: RawTaskRow): number {
   return t.billable ? (t.duration_seconds / 3600) * (t.projects?.hourly_rate ?? 0) : 0
 }
 
-export async function getReportRows(from: Date, to: Date): Promise<RawTaskRow[]> {
-  const { data, error } = await supabase
+export async function getReportRows(from: Date, to: Date, projectId?: string): Promise<RawTaskRow[]> {
+  let query = supabase
     .from("tasks")
     .select(
       "id, task_name, date, duration_seconds, billable, project_id, client_id, projects(project_name, hourly_rate, currency), clients(client_name)",
@@ -37,31 +36,22 @@ export async function getReportRows(from: Date, to: Date): Promise<RawTaskRow[]>
     .gte("date", format(from, "yyyy-MM-dd"))
     .lte("date", format(to, "yyyy-MM-dd"))
     .order("date", { ascending: true })
+  if (projectId) query = query.eq("project_id", projectId)
+  const { data, error } = await query
 
   if (error) throw error
   return (data ?? []) as unknown as RawTaskRow[]
 }
 
-/** Expenses dated within the range, totalled per currency. */
-export async function getReportExpenses(from: Date, to: Date): Promise<CurrencyAmounts> {
-  const { data, error } = await supabase
-    .from("expenses")
-    .select("amount, currency")
-    .gte("date", format(from, "yyyy-MM-dd"))
-    .lte("date", format(to, "yyyy-MM-dd"))
-  if (error) throw error
-  return sumByCurrency(data ?? [], (e) => Number(e.amount), (e) => e.currency)
-}
-
 /**
  * A fixed-price project's tasks always price at $0 (see summarize/
- * buildChartSeries) — its revenue is recognized instead when actually
- * invoiced, via the flat-fee item's amount on the invoice's issue_date.
+ * buildChartSeries) — its revenue is the payments received on its invoices
+ * (advance/partial/final), dated by invoice, never the full price up front.
  */
-export async function getReportFixedFeeRevenue(from: Date, to: Date): Promise<FixedFeeRevenueRow[]> {
+export async function getReportFixedFeeRevenue(from: Date, to: Date, projectId?: string): Promise<FixedFeeRevenueRow[]> {
   const rows = await listFixedFeeRevenue(format(from, "yyyy-MM-dd"))
   const toStr = format(to, "yyyy-MM-dd")
-  return rows.filter((r) => r.issue_date <= toStr)
+  return rows.filter((r) => r.issue_date <= toStr && (!projectId || r.project_id === projectId))
 }
 
 export function toReportRows(raw: RawTaskRow[]): ReportRow[] {
@@ -136,3 +126,5 @@ export function buildChartSeries(
     }
   })
 }
+
+export { listPending as getReportPending }

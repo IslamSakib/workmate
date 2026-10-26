@@ -10,7 +10,6 @@ import {
   getDashboardStats,
   getMonthlyTrend,
   getOutstandingInvoices,
-  getProfitMetrics,
   getRecentTasks,
   getUpcomingDeadlines,
 } from "@/features/dashboard/api"
@@ -24,7 +23,6 @@ import { formatCurrency } from "@/lib/currency"
 import type {
   DashboardStats,
   OutstandingInvoices,
-  ProfitMetrics,
   RecentTaskRow,
   TrendPoint,
   UpcomingDeadline,
@@ -37,7 +35,6 @@ interface DashboardData {
   recentTasks: RecentTaskRow[]
   outstanding: OutstandingInvoices
   deadlines: UpcomingDeadline[]
-  profit: ProfitMetrics
 }
 
 function RunningTimer() {
@@ -76,8 +73,7 @@ export default function DashboardPage() {
         getOutstandingInvoices(),
         getUpcomingDeadlines(14),
       ])
-      const profit = await getProfitMetrics(stats, { base, rates })
-      setData({ stats, trend, recentTasks, outstanding, deadlines, profit })
+      setData({ stats, trend, recentTasks, outstanding, deadlines })
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load dashboard")
     }
@@ -124,7 +120,7 @@ export default function DashboardPage() {
     )
   }
 
-  const { stats, trend, recentTasks, outstanding, deadlines, profit } = data
+  const { stats, trend, recentTasks, outstanding, deadlines } = data
 
   return (
     <>
@@ -134,11 +130,9 @@ export default function DashboardPage() {
 
       <ShowInSelector value={showIn} onChange={setShowIn} base={base} rates={rates} />
 
-      <section aria-label="Key figures" className="grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-5">
+      <section aria-label="Key figures" className="grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-3">
         <Stat label="Hours this week" value={`${stats.hoursWeek.toFixed(1)}h`} sub={`${stats.hoursToday.toFixed(1)}h today`} />
         <Stat label="Revenue this month" value={<Converted amounts={stats.revenueMonth} baseTotal={stats.revenueBase.month} mode={showIn} base={base} rates={rates} />} />
-        <Stat label="Expenses this month" value={<Converted amounts={profit.expensesMonth} mode={showIn} base={base} rates={rates} />} />
-        <Stat label="Profit this month" value={<Converted amounts={profit.profitMonth} baseTotal={profit.profitMonthBase} mode={showIn} base={base} rates={rates} />} sub="Revenue minus expenses" />
         <Stat
           label="Owed to you"
           value={<Converted amounts={outstanding.total} mode={showIn} base={base} rates={rates} />}

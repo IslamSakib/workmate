@@ -140,46 +140,96 @@ async function getFlatFeeItemFor(
   }
 }
 
+/** A project billed by a flat price rather than by the hour. */
+export function isFixedProject(p: { fixed_price: number | null; hourly_rate: number | null }): boolean {
+  return Number(p.fixed_price ?? 0) > 0 && !(Number(p.hourly_rate ?? 0) > 0)
+}
+
 /**
- * All flat-fee line items ever invoiced (task_id is null), with the
- * invoicing invoice's issue_date/client_id/project_id — lets revenue
- * reporting recognize a fixed-price project's income on the invoice rather
- * than never (per-task math is always $0 for a fixed-price project).
+ * Money actually received on invoices that are not hourly (hourly work is
+ * counted from tasks): fixed-price projects and jobs/standalone invoices with
+ * no project. One row per invoice = what has been paid so far (advance and
+ * partial payments included, never the unpaid remainder), dated on the
+ * invoice's issue date, so a job paid late still lands in its own month.
+ * `issue_date` carries that date.
  */
 export async function listFixedFeeRevenue(fromIssueDate?: string): Promise<FixedFeeRevenueRow[]> {
-  let invoiceQuery = supabase.from("invoices").select("id, issue_date, client_id, project_id, currency, fx_rate, fx_base")
-  if (fromIssueDate) invoiceQuery = invoiceQuery.gte("issue_date", fromIssueDate)
-  const { data: invoices, error: invoicesError } = await invoiceQuery
-  if (invoicesError) throw invoicesError
-  if (!invoices || invoices.length === 0) return []
+  let query = supabase
+    .from("invoices")
+    .select("id, amount_paid, issue_date, client_id, project_id, currency, fx_rate, fx_base, projects(fixed_price, hourly_rate)")
+    .gt("amount_paid", 0)
+  if (fromIssueDate) query = query.gte("issue_date", fromIssueDate)
+  const { data, error } = await query
+  if (error) throw error
 
-  const { data: items, error: itemsError } = await supabase
-    .from("invoice_items")
-    .select("invoice_id, amount")
-    .eq("kind", "flat_fee")
-    .in(
-      "invoice_id",
-      invoices.map((i) => i.id),
-    )
-  if (itemsError) throw itemsError
+  type Row = {
+    id: string
+    amount_paid: number
+    issue_date: string
+    client_id: string | null
+    project_id: string | null
+    currency: CurrencyCode
+    fx_rate: number | null
+    fx_base: CurrencyCode | null
+    projects: { fixed_price: number | null; hourly_rate: number | null } | null
+  }
+  return ((data ?? []) as unknown as Row[])
+    .filter((i) => !i.projects || isFixedProject(i.projects))
+    .map((i) => ({
+      invoice_id: i.id,
+      amount: Number(i.amount_paid),
+      issue_date: i.issue_date,
+      client_id: i.client_id,
+      project_id: i.project_id,
+      currency: i.currency,
+      fx_rate: i.fx_rate == null ? null : Number(i.fx_rate),
+      fx_base: i.fx_base,
+    }))
+}
 
-  const invoiceById = new Map(invoices.map((i) => [i.id, i]))
-  return (items ?? []).flatMap((item) => {
-    const invoice = invoiceById.get(item.invoice_id)
-    if (!invoice) return []
-    return [
-      {
-        invoice_id: item.invoice_id,
-        amount: Number(item.amount),
-        issue_date: invoice.issue_date,
-        client_id: invoice.client_id,
-        project_id: invoice.project_id,
-        currency: invoice.currency,
-        fx_rate: invoice.fx_rate == null ? null : Number(invoice.fx_rate),
-        fx_base: invoice.fx_base,
-      },
-    ]
-  })
+export interface PendingRow {
+  project_id: string | null
+  project_name: string
+  currency: CurrencyCode
+  price: number | null
+  paid: number
+  pending: number
+}
+
+/**
+ * Money still to receive. Fixed-price projects: price minus everything paid
+ * so far (covers the part not invoiced yet). Everything else: the unpaid
+ * balance of sent/partial/overdue invoices.
+ */
+export async function listPending(projectId?: string): Promise<PendingRow[]> {
+  const [{ data: projects, error: pe }, { data: invoices, error: ie }] = await Promise.all([
+    supabase.from("projects").select("id, project_name, fixed_price, hourly_rate, currency, status"),
+    supabase.from("invoices").select("project_id, total, amount_paid, status, currency"),
+  ])
+  if (pe) throw pe
+  if (ie) throw ie
+  const rows: PendingRow[] = []
+  const fixedIds = new Set<string>()
+  for (const p of projects ?? []) {
+    if (!isFixedProject(p) || p.status !== "active") continue
+    fixedIds.add(p.id)
+    if (projectId && p.id !== projectId) continue
+    const paid = (invoices ?? []).filter((i) => i.project_id === p.id).reduce((a, i) => a + Number(i.amount_paid ?? 0), 0)
+    const pending = Math.max(0, Number(p.fixed_price) - paid)
+    if (pending > 0) rows.push({ project_id: p.id, project_name: p.project_name, currency: p.currency, price: Number(p.fixed_price), paid, pending })
+  }
+  const names = new Map((projects ?? []).map((p) => [p.id, p.project_name]))
+  for (const i of invoices ?? []) {
+    if (i.project_id && fixedIds.has(i.project_id)) continue
+    if (projectId && i.project_id !== projectId) continue
+    if (!["sent", "partial", "overdue"].includes(i.status)) continue
+    const pending = Number(i.total) - Number(i.amount_paid ?? 0)
+    if (pending > 0) {
+      const name = (i.project_id && names.get(i.project_id)) || "Jobs & other invoices"
+      rows.push({ project_id: i.project_id, project_name: name, currency: i.currency, price: null, paid: Number(i.amount_paid ?? 0), pending })
+    }
+  }
+  return rows
 }
 
 type RpcLine =

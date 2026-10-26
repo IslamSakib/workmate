@@ -19,7 +19,6 @@ const TimerPage = lazy(() => import("@/pages/TimerPage"))
 const ReportsPage = lazy(() => import("@/pages/ReportsPage"))
 const InvoicesPage = lazy(() => import("@/pages/InvoicesPage"))
 const RecurringInvoicesPage = lazy(() => import("@/pages/RecurringInvoicesPage"))
-const ExpensesPage = lazy(() => import("@/pages/ExpensesPage"))
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"))
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"))
 
@@ -63,7 +62,6 @@ function App() {
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/invoices" element={<InvoicesPage />} />
               <Route path="/recurring" element={<RecurringInvoicesPage />} />
-              <Route path="/expenses" element={<ExpensesPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
           </Route>

@@ -23,7 +23,7 @@ export function formatCurrency(amount: number, code: CurrencyCode = "USD") {
 
 /**
  * Revenue/expense totals aggregated per currency rather than blended into
- * one number — projects, invoices, retainers, and expenses each carry their
+ * one number — projects, invoices, and retainers each carry their
  * own currency, so a single freelancer account can easily mix currencies.
  */
 export type CurrencyAmounts = Partial<Record<CurrencyCode, number>>
