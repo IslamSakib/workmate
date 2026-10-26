@@ -70,8 +70,8 @@ export function summarize(raw: RawTaskRow[], flatFees: FixedFeeRevenueRow[] = []
   const totalSeconds = raw.reduce((acc, t) => acc + t.duration_seconds, 0)
   const taskRevenue = sumByCurrency(raw, revenueFor, currencyFor)
   const flatFeeRevenue = sumByCurrency(flatFees, (f) => f.amount, (f) => f.currency)
-  const projectCount = new Set(raw.map((t) => t.project_id).filter(Boolean)).size
-  const clientCount = new Set(raw.map((t) => t.client_id).filter(Boolean)).size
+  const projectCount = new Set([...raw.map((t) => t.project_id), ...flatFees.map((f) => f.project_id)].filter(Boolean)).size
+  const clientCount = new Set([...raw.map((t) => t.client_id), ...flatFees.map((f) => f.client_id)].filter(Boolean)).size
   return {
     totalSeconds,
     totalRevenue: addCurrencyAmounts(taskRevenue, flatFeeRevenue),
