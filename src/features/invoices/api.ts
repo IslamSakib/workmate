@@ -211,7 +211,7 @@ export async function listPending(projectId?: string): Promise<PendingRow[]> {
   const rows: PendingRow[] = []
   const fixedIds = new Set<string>()
   for (const p of projects ?? []) {
-    if (!isFixedProject(p) || p.status !== "active") continue
+    if (!isFixedProject(p) || p.status === "cancelled") continue
     fixedIds.add(p.id)
     if (projectId && p.id !== projectId) continue
     const paid = (invoices ?? []).filter((i) => i.project_id === p.id).reduce((a, i) => a + Number(i.amount_paid ?? 0), 0)

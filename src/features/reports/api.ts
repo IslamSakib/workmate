@@ -1,6 +1,6 @@
 import { differenceInCalendarDays, eachDayOfInterval, eachMonthOfInterval, format } from "date-fns"
 import { supabase } from "@/lib/supabaseClient"
-import { listFixedFeeRevenue, listPending } from "@/features/invoices/api"
+import { listFixedFeeRevenue } from "@/features/invoices/api"
 import { sumByCurrency, addCurrencyAmounts, roundAmounts } from "@/lib/currency"
 import type { CurrencyCode } from "@/types/database"
 import type { FixedFeeRevenueRow } from "@/features/invoices/types"
@@ -126,5 +126,3 @@ export function buildChartSeries(
     }
   })
 }
-
-export { listPending as getReportPending }

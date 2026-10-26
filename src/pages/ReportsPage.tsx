@@ -23,9 +23,9 @@ import { useCurrencySettings } from "@/hooks/useCurrencySettings"
 import { useShowIn } from "@/hooks/useShowIn"
 import type { CurrencyCode } from "@/types/database"
 import { formatDuration } from "@/lib/duration"
-import { buildChartSeries, getReportFixedFeeRevenue, getReportPending, getReportRows, summarize, toReportRows } from "@/features/reports/api"
+import { buildChartSeries, getReportFixedFeeRevenue, getReportRows, summarize, toReportRows } from "@/features/reports/api"
 import type { ReportChartPoint, ReportPreset, ReportRow, ReportSummary } from "@/features/reports/types"
-import type { PendingRow } from "@/features/invoices/api"
+import { listPending, type PendingRow } from "@/features/invoices/api"
 import { listProjects } from "@/features/projects/api"
 import { generateReportPdf } from "@/lib/pdf/reportPdf"
 import {
@@ -100,7 +100,7 @@ export default function ReportsPage() {
     let active = true
     setLoading(true)
     const pid = projectId === "all" ? undefined : projectId
-    Promise.all([getReportRows(range.from, range.to, pid), getReportFixedFeeRevenue(range.from, range.to, pid), getReportPending(pid)])
+    Promise.all([getReportRows(range.from, range.to, pid), getReportFixedFeeRevenue(range.from, range.to, pid), listPending(pid)])
       .then(([raw, flatFees, pend]) => {
         if (!active) return
         setPending(pend)

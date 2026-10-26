@@ -17,7 +17,7 @@ There is no automated test suite configured. There is no command to run a single
 
 Database changes are applied by running SQL files directly in the Supabase SQL editor (or `supabase db push`) — there is no migration framework wiring this up automatically. `0001_init.sql` is the full schema for a brand-new project; every later file is an idempotent upgrade script (safe to re-run) for databases created before that feature existed:
 - `0002_per_second_billing.sql` — renames `duration_minutes`→`duration_seconds` converting values, adds `tasks.invoice_id`, replaces `invoice_items`' manual line-item columns with task-derived ones
-- `0003_retainers.sql` / `0004_expenses.sql` — purely additive new tables, no changes to existing columns
+- `0003_retainers.sql` / `0004_expenses.sql` (the expenses module was later removed from the app; its table is left in the database, unused) — purely additive new tables, no changes to existing columns
 - `0006_team_members.sql` / `0007_permission_matrix.sql` / `0008_timesheet_approval.sql` / `0010_client_portal.sql` — added multi-user team access, a per-role permission matrix, a timesheet approval workflow, and a client portal, all since **removed** by `0011_single_user.sql`. Kept for history; don't build on anything they added.
 - `0009_advanced_invoicing.sql` — extends the `invoice_status` enum with `scheduled`/`partial`, adds `invoices.notes`/`scheduled_date`/`reminder_count`/`amount_paid`, and adds `invoice_payments` + `recurring_invoices` tables
 - `0011_single_user.sql` — reverts the app to single-user: drops `team_members`, `client_portal_access`, and `audit_logs` entirely, drops the timesheet-approval and client-approval columns/triggers, and replaces every RLS policy with a plain `auth.uid() = user_id` check. This is the current permission model — there is no role or portal concept anywhere anymore.
@@ -35,7 +35,7 @@ When changing schema going forward, add a new numbered migration rather than edi
 
 `src/lib/supabaseClient.ts` creates the single typed Supabase client (`Database` type from `src/types/database.ts`, hand-written to match the SQL schema — not generated, so it must be updated manually when the schema changes). All persistence goes through this client directly from feature `api.ts` files; there is no API server/routes layer.
 
-Every domain table (`clients`, `projects`, `tasks`, `time_entries`, `invoices`, `invoice_items`, `attachments`, `settings`, `retainers`, `expenses`) has `user_id` (the account owner) and a Postgres RLS policy of the flat form `auth.uid() = user_id` — there is exactly one user per account, so this is the entire enforcement model. Because RLS enforces scoping server-side, feature `api.ts` functions do not filter by user in queries — they just insert the current `auth.getUser()` id and rely on RLS for read/update/delete scoping. New tables must follow this same pattern (enable RLS + an owner-only policy keyed off `user_id`) or they will be either unreadable or unprotected.
+Every domain table (`clients`, `projects`, `tasks`, `time_entries`, `invoices`, `invoice_items`, `attachments`, `settings`, `retainers`) has `user_id` (the account owner) and a Postgres RLS policy of the flat form `auth.uid() = user_id` — there is exactly one user per account, so this is the entire enforcement model. Because RLS enforces scoping server-side, feature `api.ts` functions do not filter by user in queries — they just insert the current `auth.getUser()` id and rely on RLS for read/update/delete scoping. New tables must follow this same pattern (enable RLS + an owner-only policy keyed off `user_id`) or they will be either unreadable or unprotected.
 
 A Postgres trigger (`handle_new_user`) auto-creates a `profiles` row and a `settings` row on signup. `updated_at` is maintained by per-table triggers, not application code.
 
@@ -112,9 +112,11 @@ Static SPA build deployed to Hostinger shared hosting (no Node server in product
 
 ## Overhaul notes (ui-overhaul branch)
 
-- Removed features: Insights, Calendar, Retainers, Proposals, CRM pipeline. Kept: Recurring (now server-side, route `/recurring`).
+- Removed features: Insights, Calendar, Retainers, Proposals, CRM pipeline, Expenses. Kept: Recurring (now server-side, route `/recurring`).
 - UI rules: no icons, no gradients, no shadows. Palette is deep teal on warm paper with a dark teal sidebar (tokens in `src/index.css`). Invoice and receipt PDFs stay black and white (`src/lib/pdf/invoicePdf.ts`, ISO currency codes because the PDF font cannot draw the taka sign).
 - Shared UI: `PageHeader`, `Stat`/`Status`/`InvoiceStatus`, `EmptyState`/`ErrorState`, `Money`, `Converted`/`ShowInSelector`. `DataTable` renders stacked cards below `md`.
 - Currency: default currency (BDT) is the base; `settings.exchange_rates` are base-per-unit. A project can lock an agreed rate (`fx_rate`/`fx_base`), which wins over the table (`rateToBase` in `src/lib/currency.ts`). Totals are never summed across currencies; `Converted` shows the chosen currency plus the originals, and names any currency with no rate.
 - Invoices: `kind` standard/advance/milestone; the final invoice can credit paid advances (`advance_credit` lines). Payments are labelled Advance/Partial/Final/Full; status and `amount_paid` come from DB triggers. "Overdue" is derived from `due_date`, never stored.
 - Tests: `npm test` (Vitest) covers currency conversion and PDF text safety.
+
+- Reports: revenue = hourly tasks at project rate + amount paid on non-hourly invoices (fixed projects, jobs), dated by invoice `issue_date` (`listFixedFeeRevenue`); `listPending` gives money still to receive. Project filter applies to both.
