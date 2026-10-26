@@ -198,7 +198,7 @@ export interface PendingRow {
 
 /**
  * Money still to receive. Fixed-price projects: price minus everything paid
- * so far (covers the part not invoiced yet). Everything else: the unpaid
+ * so far in the project's own currency (covers the part not invoiced yet). Everything else: the unpaid
  * balance of sent/partial/overdue invoices.
  */
 export async function listPending(projectId?: string): Promise<PendingRow[]> {
@@ -214,7 +214,7 @@ export async function listPending(projectId?: string): Promise<PendingRow[]> {
     if (!isFixedProject(p) || p.status === "cancelled") continue
     fixedIds.add(p.id)
     if (projectId && p.id !== projectId) continue
-    const paid = (invoices ?? []).filter((i) => i.project_id === p.id).reduce((a, i) => a + Number(i.amount_paid ?? 0), 0)
+    const paid = (invoices ?? []).filter((i) => i.project_id === p.id && i.currency === p.currency).reduce((a, i) => a + Number(i.amount_paid ?? 0), 0)
     const pending = Math.max(0, Number(p.fixed_price) - paid)
     if (pending > 0) rows.push({ project_id: p.id, project_name: p.project_name, currency: p.currency, price: Number(p.fixed_price), paid, pending })
   }

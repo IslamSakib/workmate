@@ -100,10 +100,9 @@ export default function ReportsPage() {
     let active = true
     setLoading(true)
     const pid = projectId === "all" ? undefined : projectId
-    Promise.all([getReportRows(range.from, range.to, pid), getReportFixedFeeRevenue(range.from, range.to, pid), listPending(pid)])
-      .then(([raw, flatFees, pend]) => {
+    Promise.all([getReportRows(range.from, range.to, pid), getReportFixedFeeRevenue(range.from, range.to, pid)])
+      .then(([raw, flatFees]) => {
         if (!active) return
-        setPending(pend)
         setSummary(summarize(raw, flatFees))
         setRows(toReportRows(raw))
         setChart(buildChartSeries(raw, range.from, range.to, flatFees))
@@ -114,6 +113,12 @@ export default function ReportsPage() {
       active = false
     }
   }, [range.from, range.to, projectId])
+
+  useEffect(() => {
+    listPending(projectId === "all" ? undefined : projectId)
+      .then(setPending)
+      .catch(() => setPending([]))
+  }, [projectId])
 
   useEffect(() => {
     listProjects().then(setProjects).catch(() => setProjects([]))
